@@ -2,6 +2,7 @@ import "leaflet/dist/leaflet.css";
 import "./App.css";
 import React, { useState, useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet";
+import { Analytics } from "@vercel/analytics/react";
 
 const ORS_API_KEY =
   "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImVhOGI4NWVhNmE0NTQ1NjE5ZGE1YTdmYjk1NGExYjA3IiwiaCI6Im11cm11cjY0In0=";
@@ -850,6 +851,7 @@ function App() {
           });
         })}
       </MapContainer>
+      <Analytics />
     </div>
   );
 }
