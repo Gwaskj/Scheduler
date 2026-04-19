@@ -4,15 +4,18 @@ import "./Header.css";
 export default function Header() {
   return (
     <header className="header">
-      <div className="header-left">
-        <Link to="/" className="header-logo">Route Scheduler</Link>
+      <div className="header-logo-block">
+        <img
+          src="/images/Logo.jpg"
+          alt="Route Scheduler Logo"
+        />
       </div>
 
-      <div className="header-right">
+      <nav className="header-right">
         <Link to="/" className="header-link">Home</Link>
         <Link to="/learn" className="header-link">Learn More</Link>
         <Link to="/app" className="header-button">Get Started</Link>
-      </div>
+      </nav>
     </header>
   );
 }

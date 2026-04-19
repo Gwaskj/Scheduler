@@ -1,28 +1,37 @@
-/* === HEADER CONTAINER === */
+/* === HEADER === */
 .header {
   width: 100%;
-  height: 90px; /* fixed height */
-  background: url("/images/Header.jpg") left center / 120% 90px no-repeat;
+  height: 90px;
+  background: linear-gradient(to right, rgba(168, 224, 99, 0.85), rgba(86, 171, 47, 0.85)),
+              url("/images/Header.jpg") left center / cover no-repeat;
+  background-blend-mode: overlay;
   display: flex;
   justify-content: space-between;
   align-items: center;
-
   padding: 0 24px;
   box-sizing: border-box;
-
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
   position: sticky;
   top: 0;
   z-index: 1000;
 }
 
-/* === LOGO === */
-.header-logo {
-  font-size: 22px;
-  font-weight: 700;
-  color: #333;
-  text-decoration: none;
-  white-space: nowrap;
+/* === LEFT SQUARE LOGO BLOCK === */
+.header-logo-block {
+  height: 90px;
+  width: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden; /* ensures no white edges show */
+}
+
+.header-logo-block img {
+  height: 100%;
+  width: 100%;
+  object-fit: contain; /* keeps proportions */
+  display: block;
 }
 
 /* === NAVIGATION RIGHT === */
@@ -35,6 +44,7 @@
 
 /* === LINKS === */
 .header-link {
+  font-family: "Inter", sans-serif;
   font-size: 16px;
   color: #333;
   text-decoration: none;
@@ -43,15 +53,16 @@
 }
 
 .header-link:hover {
-  color: #000;
+  color: #2f9a3d;
 }
 
 /* === BUTTON === */
 .header-button {
-  background-color: #3bb54a;
+  background-color: #021092;
   color: #fff;
   padding: 10px 18px;
   border-radius: 6px;
+  font-family: "Inter", sans-serif;
   font-size: 16px;
   font-weight: 600;
   text-decoration: none;
@@ -68,12 +79,18 @@
   .header {
     height: 80px;
     padding: 0 14px;
-    background-size: 130% 80px; /* stretch width more on mobile */
+    background-size: 130% 80px;
     background-position: left center;
   }
 
-  .header-logo {
-    font-size: 18px;
+  .header-logo-block {
+    height: 80px;
+    width: 80px;
+  }
+
+  .header-logo-block img {
+    height: 60px;
+    width: 60px;
   }
 
   .header-right {
