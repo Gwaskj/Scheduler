@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import HomePage from "./HomePage";
 import SchedulerPage from "./SchedulerPage";
 import LearnPage from "./LearnPage";
+import FeedbackPage from "./FeedbackPage";
 
 
 export default function App() {
@@ -12,6 +13,7 @@ export default function App() {
   <Route path="/" element={<HomePage />} />
   <Route path="/app" element={<SchedulerPage />} />
   <Route path="/learn" element={<LearnPage />} />   {/* <-- Add this */}
+  <Route path="/feedback" element={<FeedbackPage />} />   {/* <-- Add this */}
 </Routes>
     </BrowserRouter>
   );
