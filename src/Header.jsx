@@ -14,6 +14,7 @@ export default function Header() {
       <nav className="header-right">
         <Link to="/" className="header-link">Home</Link>
         <Link to="/learn" className="header-link">Learn More</Link>
+        <Link to="/feedback" className="header-link">Feedback</Link>
         <Link to="/app" className="header-button">Get Started</Link>
       </nav>
     </header>
