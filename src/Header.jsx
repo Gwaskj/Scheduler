@@ -6,7 +6,7 @@ export default function Header() {
     <header className="header">
       <div className="header-logo-block">
         <img
-          src="/images/Logo.jpg"
+          src="/images/Logo.png"
           alt="Route Scheduler Logo"
         />
       </div>

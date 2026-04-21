@@ -5,9 +5,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet"
 import "./SchedulerPage.css";
 import Header from "./Header";
 
-
-const ORS_API_KEY =
-  "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImVhOGI4NWVhNmE0NTQ1NjE5ZGE1YTdmYjk1NGExYjA3IiwiaCI6Im11cm11cjY0In0=";
+const ORS_API_KEY = import.meta.env.VITE_ORS_API_KEY;
 
 // ---------- Time helpers ----------
 
@@ -157,6 +155,18 @@ function offsetPolyline(latlngs, offsetMeters) {
   return offsetLatLngs;
 }
 
+// ---------- Call type priority & gaps ----------
+
+const CALL_TYPE_PRIORITY = {
+  breakfast: 1,
+  lunch: 2,
+  tea: 3,
+  evening: 4,
+  default: 99,
+};
+
+const MIN_GAP_BETWEEN_TYPES = 15; // minutes gap when switching call types
+
 // ---------- Scheduler Page Component ----------
 
 function SchedulerPage() {
@@ -192,6 +202,7 @@ function SchedulerPage() {
   const [apptDuration, setApptDuration] = useState(30);
   const [apptRequiredStaff, setApptRequiredStaff] = useState(1);
   const [apptWindowType, setApptWindowType] = useState("default");
+  const [apptStrictStart, setApptStrictStart] = useState(false);
   const [apptPostcodeError, setApptPostcodeError] = useState(false);
 
   // ---------- Local storage ----------
@@ -349,6 +360,7 @@ function SchedulerPage() {
       duration: Number(apptDuration),
       requiredStaff: Number(apptRequiredStaff),
       windowType: apptWindowType,
+      strictStart: apptStrictStart,
     };
 
     setAppointments((prev) => [...prev, newAppt]);
@@ -360,6 +372,7 @@ function SchedulerPage() {
     setApptDuration(30);
     setApptRequiredStaff(1);
     setApptWindowType("default");
+    setApptStrictStart(false);
   };
 
   // ---------- Scheduler ----------
@@ -375,7 +388,7 @@ function SchedulerPage() {
     try {
       let remaining = [...appointments];
       const assignedCounts = {};
-      const jobStartTimes = {};
+      const jobStartTimes = {}; // shared start times for multi-staff sync
       const result = {};
 
       for (const person of staff) {
@@ -385,7 +398,19 @@ function SchedulerPage() {
         const scheduleList = [];
 
         while (true) {
+          if (!remaining.length) break;
+
+          const remainingPriorities = remaining.map(
+            (j) => CALL_TYPE_PRIORITY[j.windowType]
+          );
+          const minPriority = Math.min(...remainingPriorities);
+
+          const lastJob = scheduleList[scheduleList.length - 1] || null;
+
           const candidates = remaining.filter((job) => {
+            const jobPriority = CALL_TYPE_PRIORITY[job.windowType];
+            if (jobPriority !== minPriority) return false;
+
             const override = person.customWindows?.[job.windowType];
             const jobStart = toMinutes(override?.start || job.earliestStart);
             const jobEnd = toMinutes(override?.end || job.latestEnd);
@@ -429,14 +454,35 @@ function SchedulerPage() {
 
             const earliestArrival = currentTime + travel;
 
-            let actualStart =
-              jobStartTimes[job.id] !== undefined
-                ? jobStartTimes[job.id]
-                : Math.max(jobStart, earliestArrival);
+            let actualStart;
+
+            if (job.strictStart) {
+              // strict must-start-at: must start exactly at jobStart
+              if (earliestArrival > jobStart) return;
+              actualStart =
+                jobStartTimes[job.id] !== undefined
+                  ? jobStartTimes[job.id]
+                  : jobStart;
+            } else {
+              actualStart =
+                jobStartTimes[job.id] !== undefined
+                  ? jobStartTimes[job.id]
+                  : Math.max(jobStart, earliestArrival);
+            }
 
             const actualEnd = actualStart + job.duration;
 
             if (actualEnd > jobEnd || actualEnd > endOfDay) return;
+
+            if (
+              lastJob &&
+              CALL_TYPE_PRIORITY[lastJob.windowType] !==
+                CALL_TYPE_PRIORITY[job.windowType]
+            ) {
+              if (actualStart < lastJob.actualEnd + MIN_GAP_BETWEEN_TYPES) {
+                return;
+              }
+            }
 
             const windowTightness = jobEnd - jobStart;
             const score = travel * 0.7 + windowTightness * 0.3;
@@ -482,6 +528,7 @@ function SchedulerPage() {
             routeGeometry,
             windowType: best.job.windowType,
             staffWindow: person.customWindows?.[best.job.windowType] || null,
+            strictStart: best.job.strictStart,
           });
 
           assignedCounts[best.job.id] =
@@ -508,355 +555,365 @@ function SchedulerPage() {
 
   // ---------- Render ----------
 
- return (
-  <>
-    <Header />
-    <div className="app-container">
+  return (
+    <>
+      <Header />
+      <div className="app-container">
+        {/* Add Staff */}
+        <section>
+          <h2>Add Staff</h2>
 
-      {/* Add Staff */}
-      <section>
-        <h2>Add Staff</h2>
-
-        <div className="flex-row">
-          <input
-            type="text"
-            placeholder="Name"
-            value={staffName}
-            onChange={(e) => setStaffName(e.target.value)}
-          />
-
-          <input
-            type="text"
-            placeholder="Postcode"
-            value={staffPostcode}
-            onChange={(e) => {
-              setStaffPostcode(e.target.value);
-              setStaffPostcodeError(false);
-            }}
-            className={staffPostcodeError ? "input-error" : ""}
-          />
-
-          <input
-            type="time"
-            value={staffStart}
-            onChange={(e) => setStaffStart(e.target.value)}
-          />
-
-          <input
-            type="time"
-            value={staffEnd}
-            onChange={(e) => setStaffEnd(e.target.value)}
-          />
-        </div>
-
-        <h4>Custom Windows</h4>
-
-        <div className="flex-row">
-          <div>
-            <strong>Breakfast</strong>
-            <br />
+          <div className="flex-row">
             <input
-              type="time"
-              value={staffBreakfastStart}
-              onChange={(e) => setStaffBreakfastStart(e.target.value)}
+              type="text"
+              placeholder="Name"
+              value={staffName}
+              onChange={(e) => setStaffName(e.target.value)}
             />
+
+            <input
+              type="text"
+              placeholder="Postcode"
+              value={staffPostcode}
+              onChange={(e) => {
+                setStaffPostcode(e.target.value);
+                setStaffPostcodeError(false);
+              }}
+              className={staffPostcodeError ? "input-error" : ""}
+            />
+
             <input
               type="time"
-              value={staffBreakfastEnd}
-              onChange={(e) => setStaffBreakfastEnd(e.target.value)}
+              value={staffStart}
+              onChange={(e) => setStaffStart(e.target.value)}
+            />
+
+            <input
+              type="time"
+              value={staffEnd}
+              onChange={(e) => setStaffEnd(e.target.value)}
             />
           </div>
 
-          <div>
-            <strong>Lunch</strong>
-            <br />
-            <input
-              type="time"
-              value={staffLunchStart}
-              onChange={(e) => setStaffLunchStart(e.target.value)}
-            />
-            <input
-              type="time"
-              value={staffLunchEnd}
-              onChange={(e) => setStaffLunchEnd(e.target.value)}
-            />
-          </div>
+          <h4>Custom Windows</h4>
 
-          <div>
-            <strong>Tea</strong>
-            <br />
-            <input
-              type="time"
-              value={staffTeaStart}
-              onChange={(e) => setStaffTeaStart(e.target.value)}
-            />
-            <input
-              type="time"
-              value={staffTeaEnd}
-              onChange={(e) => setStaffTeaEnd(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <strong>Evening</strong>
-            <br />
-            <input
-              type="time"
-              value={staffEveningStart}
-              onChange={(e) => setStaffEveningStart(e.target.value)}
-            />
-            <input
-              type="time"
-              value={staffEveningEnd}
-              onChange={(e) => setStaffEveningEnd(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <button onClick={handleAddStaff}>Add Staff</button>
-
-        <ul>
-          {staff.map((s) => (
-            <li key={s.id}>
-              {s.name} — {s.postcode} — {s.availableStart}–{s.availableEnd}{" "}
-              <button onClick={() => handleDeleteStaff(s.id)}>Delete</button>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {/* Add Appointment */}
-      <section>
-        <h2>Add Appointment</h2>
-
-        <div className="flex-row">
-          <input
-            type="text"
-            placeholder="Client Name (optional)"
-            value={apptName}
-            onChange={(e) => setApptName(e.target.value)}
-          />
-
-          <input
-            type="text"
-            placeholder="Postcode"
-            value={apptPostcode}
-            onChange={(e) => {
-              setApptPostcode(e.target.value);
-              setApptPostcodeError(false);
-            }}
-            className={apptPostcodeError ? "input-error" : ""}
-          />
-
-          <div>
-            <label className="label-small">Earliest Start</label>
-            <input
-              type="time"
-              value={apptEarliestStart}
-              onChange={(e) => setApptEarliestStart(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="label-small">Latest End</label>
-            <input
-              type="time"
-              value={apptLatestEnd}
-              onChange={(e) => setApptLatestEnd(e.target.value)}
-            />
-          </div>
-
-          <select
-            value={apptDuration}
-            onChange={(e) => setApptDuration(Number(e.target.value))}
-          >
-            <option value={15}>15 min</option>
-            <option value={30}>30 min</option>
-            <option value={45}>45 min</option>
-            <option value={60}>60 min</option>
-          </select>
-
-          <select
-            value={apptRequiredStaff}
-            onChange={(e) => setApptRequiredStaff(Number(e.target.value))}
-          >
-            <option value={1}>1 staff</option>
-            <option value={2}>2 staff</option>
-            <option value={3}>3 staff</option>
-          </select>
-
-          <select
-            value={apptWindowType}
-            onChange={(e) => setApptWindowType(e.target.value)}
-          >
-            <option value="default">Default</option>
-            <option value="breakfast">Breakfast</option>
-            <option value="lunch">Lunch</option>
-            <option value="tea">Tea</option>
-            <option value="evening">Evening</option>
-          </select>
-
-          <button onClick={handleAddAppointment}>Add Appointment</button>
-        </div>
-
-        <ul>
-          {appointments.map((a) => (
-            <li key={a.id}>
-              <strong>{a.name}</strong> — {a.postcode} ({a.earliestStart}–
-              {a.latestEnd}) {a.duration}min — needs {a.requiredStaff} staff —
-              type: {a.windowType}{" "}
-              <button onClick={() => handleDeleteAppointment(a.id)}>
-                Delete
-              </button>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {/* Generate Schedule */}
-      <section>
-        <h2>Generate Schedule</h2>
-        <button onClick={generateSchedule} disabled={loading}>
-          {loading ? "Generating..." : "Generate Schedule"}
-        </button>
-      </section>
-
-      {/* Schedule Output */}
-      <section>
-        <h2>Schedule</h2>
-        {Object.keys(schedule).length === 0 && <p>No schedule yet.</p>}
-
-        {Object.entries(schedule).map(([name, jobs]) => {
-          const totalTravel = jobs.reduce(
-            (sum, j) => sum + (j.travelMinutes || 0),
-            0
-          );
-          const totalDistanceMiles = jobs.reduce(
-            (sum, j) => sum + (j.distanceKm || 0) * 0.621371,
-            0
-          );
-
-          return (
-            <div key={name}>
-              <h3
-                className="clickable"
-                onClick={() => {
-                  setSelectedStaff(name);
-                  fitMapToStaff(jobs);
-                }}
-              >
-                {name}
-              </h3>
-
-              <p>
-                <strong>Total travel:</strong> {totalTravel} min
-                <br />
-                <strong>Total distance:</strong>{" "}
-                {totalDistanceMiles.toFixed(1)} miles
-              </p>
-
-              {jobs.length === 0 && <p>No jobs assigned.</p>}
-
-              {jobs.map((job, idx) => (
-                <div key={job.id + "-" + job.actualStart}>
-                  <strong>
-                    #{idx + 1} {job.name}
-                  </strong>{" "}
-                  — {job.postcode}
-                  <br />
-                  {fromMinutes(job.actualStart)}–
-                  {fromMinutes(job.actualEnd)}
-                  <br />
-                  (global window {job.earliestStart}–{job.latestEnd}
-                  {job.staffWindow
-                    ? `, staff window ${job.staffWindow.start}–${job.staffWindow.end}`
-                    : ""}
-                  , travel {job.travelMinutes} min)
-                </div>
-              ))}
+          <div className="flex-row">
+            <div>
+              <strong>Breakfast</strong>
+              <br />
+              <input
+                type="time"
+                value={staffBreakfastStart}
+                onChange={(e) => setStaffBreakfastStart(e.target.value)}
+              />
+              <input
+                type="time"
+                value={staffBreakfastEnd}
+                onChange={(e) => setStaffBreakfastEnd(e.target.value)}
+              />
             </div>
-          );
-        })}
-      </section>
 
-      {/* Map Controls */}
-      <section>
-        <h2>Map</h2>
-        <div>
-          <label>
-            <strong>Show route for:</strong>
-          </label>{" "}
-          <select
-            value={selectedStaff}
-            onChange={(e) => setSelectedStaff(e.target.value)}
-          >
-            <option value="ALL">All Staff</option>
-            {Object.keys(schedule).map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
+            <div>
+              <strong>Lunch</strong>
+              <br />
+              <input
+                type="time"
+                value={staffLunchStart}
+                onChange={(e) => setStaffLunchStart(e.target.value)}
+              />
+              <input
+                type="time"
+                value={staffLunchEnd}
+                onChange={(e) => setStaffLunchEnd(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <strong>Tea</strong>
+              <br />
+              <input
+                type="time"
+                value={staffTeaStart}
+                onChange={(e) => setStaffTeaStart(e.target.value)}
+              />
+              <input
+                type="time"
+                value={staffTeaEnd}
+                onChange={(e) => setStaffTeaEnd(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <strong>Evening</strong>
+              <br />
+              <input
+                type="time"
+                value={staffEveningStart}
+                onChange={(e) => setStaffEveningStart(e.target.value)}
+              />
+              <input
+                type="time"
+                value={staffEveningEnd}
+                onChange={(e) => setStaffEveningEnd(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <button onClick={handleAddStaff}>Add Staff</button>
+
+          <ul>
+            {staff.map((s) => (
+              <li key={s.id}>
+                {s.name} — {s.postcode} — {s.availableStart}–{s.availableEnd}{" "}
+                <button onClick={() => handleDeleteStaff(s.id)}>Delete</button>
+              </li>
             ))}
-          </select>
-        </div>
-      </section>
+          </ul>
+        </section>
 
-      {/* Full-width Map */}
-      <MapContainer
-        center={[53.05, -2.2]}
-        zoom={11}
-        className="map-full"
-        whenCreated={(map) => (mapRef.current = map)}
-      >
-        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        {/* Add Appointment */}
+        <section>
+          <h2>Add Appointment</h2>
 
-        {Object.entries(schedule).map(([name, jobs]) => {
-          if (selectedStaff !== "ALL" && selectedStaff !== name) return null;
+          <div className="flex-row">
+            <input
+              type="text"
+              placeholder="Client Name (optional)"
+              value={apptName}
+              onChange={(e) => setApptName(e.target.value)}
+            />
 
-          return jobs.map((job, idx) => {
-            const color = ROUTE_COLORS[idx % ROUTE_COLORS.length];
+            <input
+              type="text"
+              placeholder="Postcode"
+              value={apptPostcode}
+              onChange={(e) => {
+                setApptPostcode(e.target.value);
+                setApptPostcodeError(false);
+              }}
+              className={apptPostcodeError ? "input-error" : ""}
+            />
 
-            const baseCoords = (job.routeGeometry || []).map(
-              ([lon, lat]) => ({ lat, lon })
+            <div>
+              <label className="label-small">Earliest Start</label>
+              <input
+                type="time"
+                value={apptEarliestStart}
+                onChange={(e) => setApptEarliestStart(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="label-small">Latest End</label>
+              <input
+                type="time"
+                value={apptLatestEnd}
+                onChange={(e) => setApptLatestEnd(e.target.value)}
+              />
+            </div>
+
+            <select
+              value={apptDuration}
+              onChange={(e) => setApptDuration(Number(e.target.value))}
+            >
+              <option value={15}>15 min</option>
+              <option value={30}>30 min</option>
+              <option value={45}>45 min</option>
+              <option value={60}>60 min</option>
+            </select>
+
+            <select
+              value={apptRequiredStaff}
+              onChange={(e) => setApptRequiredStaff(Number(e.target.value))}
+            >
+              <option value={1}>1 staff</option>
+              <option value={2}>2 staff</option>
+              <option value={3}>3 staff</option>
+            </select>
+
+            <select
+              value={apptWindowType}
+              onChange={(e) => setApptWindowType(e.target.value)}
+            >
+              <option value="default">Default</option>
+              <option value="breakfast">Breakfast</option>
+              <option value="lunch">Lunch</option>
+              <option value="tea">Tea</option>
+              <option value="evening">Evening</option>
+            </select>
+
+            <label>
+              <input
+                type="checkbox"
+                checked={apptStrictStart}
+                onChange={(e) => setApptStrictStart(e.target.checked)}
+              />{" "}
+              Strict must-start time
+            </label>
+
+            <button onClick={handleAddAppointment}>Add Appointment</button>
+          </div>
+
+          <ul>
+            {appointments.map((a) => (
+              <li key={a.id}>
+                <strong>{a.name}</strong> — {a.postcode} ({a.earliestStart}–
+                {a.latestEnd}) {a.duration}min — needs {a.requiredStaff} staff —
+                type: {a.windowType} —{" "}
+                {a.strictStart ? "Strict start" : "Flexible"}{" "}
+                <button onClick={() => handleDeleteAppointment(a.id)}>
+                  Delete
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        {/* Generate Schedule */}
+        <section>
+          <h2>Generate Schedule</h2>
+          <button onClick={generateSchedule} disabled={loading}>
+            {loading ? "Generating..." : "Generate Schedule"}
+          </button>
+        </section>
+
+        {/* Schedule Output */}
+        <section>
+          <h2>Schedule</h2>
+          {Object.keys(schedule).length === 0 && <p>No schedule yet.</p>}
+
+          {Object.entries(schedule).map(([name, jobs]) => {
+            const totalTravel = jobs.reduce(
+              (sum, j) => sum + (j.travelMinutes || 0),
+              0
             );
-
-            const offsetMeters = idx * 2;
-            const shifted = offsetPolyline(baseCoords, offsetMeters);
+            const totalDistanceMiles = jobs.reduce(
+              (sum, j) => sum + (j.distanceKm || 0) * 0.621371,
+              0
+            );
 
             return (
-              <React.Fragment key={name + "-" + idx}>
-                {job.coords && (
-                  <Marker position={[job.coords.lat, job.coords.lon]}>
-                    <Popup>
-                      <strong>
-                        #{idx + 1} {job.name}
-                      </strong>
-                      <br />
-                      {job.postcode}
-                      <br />
-                      {fromMinutes(job.actualStart)}–
-                      {fromMinutes(job.actualEnd)}
-                    </Popup>
-                  </Marker>
-                )}
+              <div key={name}>
+                <h3
+                  className="clickable"
+                  onClick={() => {
+                    setSelectedStaff(name);
+                    fitMapToStaff(jobs);
+                  }}
+                >
+                  {name}
+                </h3>
 
-                {shifted.length > 1 && (
-                  <Polyline
-                    positions={shifted.map((p) => [p.lat, p.lon])}
-                    pathOptions={{
-                      color,
-                      weight: 5,
-                      opacity: 0.9,
-                    }}
-                  />
-                )}
-              </React.Fragment>
+                <p>
+                  <strong>Total travel:</strong> {totalTravel} min
+                  <br />
+                  <strong>Total distance:</strong>{" "}
+                  {totalDistanceMiles.toFixed(1)} miles
+                </p>
+
+                {jobs.length === 0 && <p>No jobs assigned.</p>}
+
+                {jobs.map((job, idx) => (
+                  <div key={job.id + "-" + job.actualStart}>
+                    <strong>
+                      #{idx + 1} {job.name}
+                    </strong>{" "}
+                    — {job.postcode}
+                    <br />
+                    {fromMinutes(job.actualStart)}–
+                    {fromMinutes(job.actualEnd)}
+                    <br />
+                    (global window {job.earliestStart}–{job.latestEnd}
+                    {job.staffWindow
+                      ? `, staff window ${job.staffWindow.start}–${job.staffWindow.end}`
+                      : ""}
+                    , travel {job.travelMinutes} min
+                    {job.strictStart ? ", strict start" : ""})
+                  </div>
+                ))}
+              </div>
             );
-          });
-        })}
-            </MapContainer>
-    </div>
-  </>
-);
+          })}
+        </section>
+
+        {/* Map Controls */}
+        <section>
+          <h2>Map</h2>
+          <div>
+            <label>
+              <strong>Show route for:</strong>
+            </label>{" "}
+            <select
+              value={selectedStaff}
+              onChange={(e) => setSelectedStaff(e.target.value)}
+            >
+              <option value="ALL">All Staff</option>
+              {Object.keys(schedule).map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </section>
+
+        {/* Full-width Map */}
+        <MapContainer
+          center={[53.05, -2.2]}
+          zoom={11}
+          className="map-full"
+          whenCreated={(map) => (mapRef.current = map)}
+        >
+          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+
+          {Object.entries(schedule).map(([name, jobs]) => {
+            if (selectedStaff !== "ALL" && selectedStaff !== name) return null;
+
+            return jobs.map((job, idx) => {
+              const color = ROUTE_COLORS[idx % ROUTE_COLORS.length];
+
+              const baseCoords = (job.routeGeometry || []).map(
+                ([lon, lat]) => ({ lat, lon })
+              );
+
+              const offsetMeters = idx * 2;
+              const shifted = offsetPolyline(baseCoords, offsetMeters);
+
+              return (
+                <React.Fragment key={name + "-" + idx}>
+                  {job.coords && (
+                    <Marker position={[job.coords.lat, job.coords.lon]}>
+                      <Popup>
+                        <strong>
+                          #{idx + 1} {job.name}
+                        </strong>
+                        <br />
+                        {job.postcode}
+                        <br />
+                        {fromMinutes(job.actualStart)}–
+                        {fromMinutes(job.actualEnd)}
+                      </Popup>
+                    </Marker>
+                  )}
+
+                  {shifted.length > 1 && (
+                    <Polyline
+                      positions={shifted.map((p) => [p.lat, p.lon])}
+                      pathOptions={{
+                        color,
+                        weight: 5,
+                        opacity: 0.9,
+                      }}
+                    />
+                  )}
+                </React.Fragment>
+              );
+            });
+          })}
+        </MapContainer>
+      </div>
+    </>
+  );
 }
 
 export default SchedulerPage;
