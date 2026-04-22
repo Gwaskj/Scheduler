@@ -1,6 +1,7 @@
 import React from "react";
 import Header from "./Header";
 import "./LearnPage.css";
+import AdBanner from "./AdBanner";
 
 export default function LearnPage() {
   return (

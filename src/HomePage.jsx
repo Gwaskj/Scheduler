@@ -1,6 +1,7 @@
 import React from "react";
 import "./HomePage.css";
 import { useNavigate } from "react-router-dom";
+import AdBanner from "./AdBanner";
 
 export default function HomePage() {
   const navigate = useNavigate();
