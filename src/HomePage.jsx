@@ -30,6 +30,7 @@ export default function HomePage() {
           <button onClick={() => navigate("/learn")} className="btn-learn">
             Learn More
           </button>
+          <AdBanner />
         </div>
       </div>
     </div>

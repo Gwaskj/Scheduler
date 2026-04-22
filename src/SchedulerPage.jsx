@@ -1,3 +1,4 @@
+import AdBanner from "./AdBanner";
 import "leaflet/dist/leaflet.css";
 import "./App.css";
 import React, { useState, useEffect, useRef } from "react";
@@ -870,7 +871,7 @@ function SchedulerPage() {
             );
           })}
         </section>
-
+<AdBanner />
         {/* Map Controls */}
         <section>
           <h2>Map</h2>
@@ -946,6 +947,7 @@ function SchedulerPage() {
             });
           })}
         </MapContainer>
+        <AdBanner />
       </div>
     </>
   );
