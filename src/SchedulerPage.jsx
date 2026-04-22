@@ -86,7 +86,7 @@ async function getMatrix(from, tos) {
   return data;
 }
 
-// ---------- ORS Directions (for map polylines) ----------
+// ---------- ORS Directions ----------
 
 async function getRouteGeometry(from, to) {
   const url =
@@ -115,10 +115,10 @@ async function getRouteGeometry(from, to) {
     throw new Error("Directions returned no features");
   }
 
-  return data.features[0].geometry.coordinates; // [ [lon,lat], ... ]
+  return data.features[0].geometry.coordinates;
 }
 
-// ---------- Route colours & offset helper ----------
+// ---------- Route colours & offset ----------
 
 const ROUTE_COLORS = [
   "blue",
@@ -155,19 +155,11 @@ function offsetPolyline(latlngs, offsetMeters) {
   return offsetLatLngs;
 }
 
-// ---------- Call type priority & gaps ----------
+// ---------- Gap between windows ----------
 
-const CALL_TYPE_PRIORITY = {
-  breakfast: 1,
-  lunch: 2,
-  tea: 3,
-  evening: 4,
-  default: 99,
-};
+const MIN_GAP_BETWEEN_TYPES = 15;
 
-const MIN_GAP_BETWEEN_TYPES = 15; // minutes gap when switching call types
-
-// ---------- Scheduler Page Component ----------
+// ---------- Component ----------
 
 function SchedulerPage() {
   const [staff, setStaff] = useState([]);
@@ -177,6 +169,20 @@ function SchedulerPage() {
   const [selectedStaff, setSelectedStaff] = useState("ALL");
   const mapRef = useRef(null);
 
+  // Drag state
+  const [dragState, setDragState] = useState({
+    staffName: null,
+    fromIndex: null,
+  });
+
+  // Global window templates
+  const [windowTemplates, setWindowTemplates] = useState([
+    { id: "breakfast", name: "Breakfast", start: "08:00", end: "10:00" },
+    { id: "lunch", name: "Lunch", start: "12:00", end: "14:00" },
+    { id: "tea", name: "Tea", start: "15:00", end: "17:00" },
+    { id: "evening", name: "Evening", start: "17:00", end: "19:00" },
+  ]);
+
   // Staff form
   const [staffName, setStaffName] = useState("");
   const [staffPostcode, setStaffPostcode] = useState("");
@@ -184,26 +190,16 @@ function SchedulerPage() {
   const [staffEnd, setStaffEnd] = useState("17:00");
   const [staffPostcodeError, setStaffPostcodeError] = useState(false);
 
-  // Staff custom windows
-  const [staffBreakfastStart, setStaffBreakfastStart] = useState("08:00");
-  const [staffBreakfastEnd, setStaffBreakfastEnd] = useState("10:00");
-  const [staffLunchStart, setStaffLunchStart] = useState("12:00");
-  const [staffLunchEnd, setStaffLunchEnd] = useState("14:00");
-  const [staffTeaStart, setStaffTeaStart] = useState("15:00");
-  const [staffTeaEnd, setStaffTeaEnd] = useState("17:00");
-  const [staffEveningStart, setStaffEveningStart] = useState("17:00");
-  const [staffEveningEnd, setStaffEveningEnd] = useState("19:00");
-
   // Appointment form
   const [apptName, setApptName] = useState("");
   const [apptPostcode, setApptPostcode] = useState("");
-  const [apptEarliestStart, setApptEarliestStart] = useState("");
-  const [apptLatestEnd, setApptLatestEnd] = useState("");
   const [apptDuration, setApptDuration] = useState(30);
   const [apptRequiredStaff, setApptRequiredStaff] = useState(1);
-  const [apptWindowType, setApptWindowType] = useState("default");
   const [apptStrictStart, setApptStrictStart] = useState(false);
   const [apptPostcodeError, setApptPostcodeError] = useState(false);
+
+  // Selected windows for appointment
+  const [apptSelectedWindows, setApptSelectedWindows] = useState([]);
 
   // ---------- Local storage ----------
 
@@ -213,9 +209,7 @@ function SchedulerPage() {
       const a = localStorage.getItem("appointments");
       if (s) setStaff(JSON.parse(s));
       if (a) setAppointments(JSON.parse(a));
-    } catch (e) {
-      console.error("LocalStorage load error", e);
-    }
+    } catch {}
   }, []);
 
   useEffect(() => {
@@ -243,6 +237,33 @@ function SchedulerPage() {
     map.fitBounds(bounds, { padding: [50, 50] });
   };
 
+  // ---------- Reorder jobs ----------
+
+  const reorderJobs = (staffName, fromIndex, toIndex) => {
+    if (
+      fromIndex === toIndex ||
+      fromIndex == null ||
+      toIndex == null ||
+      toIndex < 0
+    )
+      return;
+
+    setSchedule((prev) => {
+      const staffJobs = prev[staffName] || [];
+      if (fromIndex >= staffJobs.length || toIndex >= staffJobs.length) {
+        return prev;
+      }
+      const newJobs = [...staffJobs];
+      const [moved] = newJobs.splice(fromIndex, 1);
+      newJobs.splice(toIndex, 0, moved);
+
+      return {
+        ...prev,
+        [staffName]: newJobs,
+      };
+    });
+  };
+
   // ---------- Add staff ----------
 
   const handleAddStaff = async () => {
@@ -260,6 +281,15 @@ function SchedulerPage() {
       return;
     }
 
+    const customWindows = {};
+    windowTemplates.forEach((w) => {
+      customWindows[w.id] = {
+        name: w.name,
+        start: w.start,
+        end: w.end,
+      };
+    });
+
     const newStaff = {
       id: crypto.randomUUID(),
       name: staffName,
@@ -268,24 +298,7 @@ function SchedulerPage() {
       lon: lookup.lon,
       availableStart: staffStart,
       availableEnd: staffEnd,
-      customWindows: {
-        breakfast: {
-          start: staffBreakfastStart,
-          end: staffBreakfastEnd,
-        },
-        lunch: {
-          start: staffLunchStart,
-          end: staffLunchEnd,
-        },
-        tea: {
-          start: staffTeaStart,
-          end: staffTeaEnd,
-        },
-        evening: {
-          start: staffEveningStart,
-          end: staffEveningEnd,
-        },
-      },
+      customWindows,
     };
 
     setStaff((prev) => [...prev, newStaff]);
@@ -297,10 +310,12 @@ function SchedulerPage() {
 
   const handleDeleteStaff = (id) => {
     setStaff((prev) => prev.filter((s) => s.id !== id));
-  };
-
-  const handleDeleteAppointment = (id) => {
-    setAppointments((prev) => prev.filter((a) => a.id !== id));
+    setSchedule((prev) => {
+      const copy = { ...prev };
+      const removed = staff.find((s) => s.id === id);
+      if (removed) delete copy[removed.name];
+      return copy;
+    });
   };
 
   // ---------- Add appointment ----------
@@ -313,11 +328,9 @@ function SchedulerPage() {
       return;
     }
 
-    if (apptWindowType === "default") {
-      if (!apptEarliestStart || !apptLatestEnd) {
-        alert("Please enter earliest and latest times for a default window.");
-        return;
-      }
+    if (apptSelectedWindows.length === 0) {
+      alert("Select at least one window.");
+      return;
     }
 
     const lookup = await lookupPostcodeCoords(apptPostcode);
@@ -327,52 +340,26 @@ function SchedulerPage() {
       return;
     }
 
-    let earliest = apptEarliestStart;
-    let latest = apptLatestEnd;
-
-    if (apptWindowType !== "default") {
-      if (apptWindowType === "breakfast") {
-        earliest = "08:00";
-        latest = "10:00";
-      }
-      if (apptWindowType === "lunch") {
-        earliest = "12:00";
-        latest = "14:00";
-      }
-      if (apptWindowType === "tea") {
-        earliest = "15:00";
-        latest = "17:00";
-      }
-      if (apptWindowType === "evening") {
-        earliest = "17:00";
-        latest = "19:00";
-      }
-    }
-
     const newAppt = {
       id: crypto.randomUUID(),
       name: apptName || lookup.postcode,
       postcode: lookup.postcode,
       lat: lookup.lat,
       lon: lookup.lon,
-      earliestStart: earliest,
-      latestEnd: latest,
       duration: Number(apptDuration),
       requiredStaff: Number(apptRequiredStaff),
-      windowType: apptWindowType,
       strictStart: apptStrictStart,
+      selectedWindows: [...apptSelectedWindows],
     };
 
     setAppointments((prev) => [...prev, newAppt]);
 
     setApptName("");
     setApptPostcode("");
-    setApptEarliestStart("");
-    setApptLatestEnd("");
     setApptDuration(30);
     setApptRequiredStaff(1);
-    setApptWindowType("default");
     setApptStrictStart(false);
+    setApptSelectedWindows([]);
   };
 
   // ---------- Scheduler ----------
@@ -386,10 +373,33 @@ function SchedulerPage() {
     setLoading(true);
 
     try {
-      let remaining = [...appointments];
+      // Expand each appointment into multiple window-specific jobs
+      let expanded = [];
+      for (const appt of appointments) {
+        for (const winId of appt.selectedWindows) {
+          const template = windowTemplates.find((w) => w.id === winId);
+          if (!template) continue;
+
+          expanded.push({
+            ...appt,
+            jobId: crypto.randomUUID(), // unique per window visit
+            windowType: winId,
+            earliestStart: template.start,
+            latestEnd: template.end,
+          });
+        }
+      }
+
+      let remaining = [...expanded];
       const assignedCounts = {};
-      const jobStartTimes = {}; // shared start times for multi-staff sync
+      const jobStartTimes = {};
       const result = {};
+
+      // Priority = order in windowTemplates
+      const priorityMap = {};
+      windowTemplates.forEach((w, idx) => {
+        priorityMap[w.id] = idx + 1;
+      });
 
       for (const person of staff) {
         let currentTime = toMinutes(person.availableStart);
@@ -401,14 +411,14 @@ function SchedulerPage() {
           if (!remaining.length) break;
 
           const remainingPriorities = remaining.map(
-            (j) => CALL_TYPE_PRIORITY[j.windowType]
+            (j) => priorityMap[j.windowType] ?? 99
           );
           const minPriority = Math.min(...remainingPriorities);
 
           const lastJob = scheduleList[scheduleList.length - 1] || null;
 
           const candidates = remaining.filter((job) => {
-            const jobPriority = CALL_TYPE_PRIORITY[job.windowType];
+            const jobPriority = priorityMap[job.windowType] ?? 99;
             if (jobPriority !== minPriority) return false;
 
             const override = person.customWindows?.[job.windowType];
@@ -418,10 +428,8 @@ function SchedulerPage() {
             if (jobEnd <= currentTime) return false;
             if (jobEnd > endOfDay) return false;
 
-            const count = assignedCounts[job.id] || 0;
+            const count = assignedCounts[job.jobId] || 0;
             if (count >= job.requiredStaff) return false;
-
-            if (scheduleList.some((x) => x.id === job.id)) return false;
 
             return true;
           });
@@ -457,16 +465,15 @@ function SchedulerPage() {
             let actualStart;
 
             if (job.strictStart) {
-              // strict must-start-at: must start exactly at jobStart
               if (earliestArrival > jobStart) return;
               actualStart =
-                jobStartTimes[job.id] !== undefined
-                  ? jobStartTimes[job.id]
+                jobStartTimes[job.jobId] !== undefined
+                  ? jobStartTimes[job.jobId]
                   : jobStart;
             } else {
               actualStart =
-                jobStartTimes[job.id] !== undefined
-                  ? jobStartTimes[job.id]
+                jobStartTimes[job.jobId] !== undefined
+                  ? jobStartTimes[job.jobId]
                   : Math.max(jobStart, earliestArrival);
             }
 
@@ -476,12 +483,10 @@ function SchedulerPage() {
 
             if (
               lastJob &&
-              CALL_TYPE_PRIORITY[lastJob.windowType] !==
-                CALL_TYPE_PRIORITY[job.windowType]
+              lastJob.windowType !== job.windowType &&
+              actualStart < lastJob.actualEnd + MIN_GAP_BETWEEN_TYPES
             ) {
-              if (actualStart < lastJob.actualEnd + MIN_GAP_BETWEEN_TYPES) {
-                return;
-              }
+              return;
             }
 
             const windowTightness = jobEnd - jobStart;
@@ -507,15 +512,15 @@ function SchedulerPage() {
             lon: best.job.lon,
           });
 
-          if (jobStartTimes[best.job.id] === undefined) {
-            jobStartTimes[best.job.id] = best.actualStart;
+          if (jobStartTimes[best.job.jobId] === undefined) {
+            jobStartTimes[best.job.jobId] = best.actualStart;
           }
 
           currentTime = best.actualEnd;
           currentCoords = best.coords;
 
           scheduleList.push({
-            id: best.job.id,
+            id: best.job.jobId,
             name: best.job.name,
             postcode: best.job.postcode,
             earliestStart: best.job.earliestStart,
@@ -531,11 +536,11 @@ function SchedulerPage() {
             strictStart: best.job.strictStart,
           });
 
-          assignedCounts[best.job.id] =
-            (assignedCounts[best.job.id] || 0) + 1;
+          assignedCounts[best.job.jobId] =
+            (assignedCounts[best.job.jobId] || 0) + 1;
 
-          if (assignedCounts[best.job.id] >= best.job.requiredStaff) {
-            remaining = remaining.filter((j) => j.id !== best.job.id);
+          if (assignedCounts[best.job.jobId] >= best.job.requiredStaff) {
+            remaining = remaining.filter((j) => j.jobId !== best.job.jobId);
           }
         }
 
@@ -559,6 +564,79 @@ function SchedulerPage() {
     <>
       <Header />
       <div className="app-container">
+
+        {/* Custom Windows */}
+        <section>
+          <h2>Custom Time Windows</h2>
+
+          {windowTemplates.map((w) => (
+            <div key={w.id} className="flex-row">
+              <input
+                type="text"
+                value={w.name}
+                onChange={(e) => {
+                  const name = e.target.value;
+                  setWindowTemplates((prev) =>
+                    prev.map((x) => (x.id === w.id ? { ...x, name } : x))
+                  );
+                }}
+                placeholder="Window name"
+              />
+
+              <input
+                type="text"
+                value={w.start}
+                onChange={(e) => {
+                  const start = e.target.value;
+                  setWindowTemplates((prev) =>
+                    prev.map((x) => (x.id === w.id ? { ...x, start } : x))
+                  );
+                }}
+                placeholder="HH:MM"
+              />
+
+              <input
+                type="text"
+                value={w.end}
+                onChange={(e) => {
+                  const end = e.target.value;
+                  setWindowTemplates((prev) =>
+                    prev.map((x) => (x.id === w.id ? { ...x, end } : x))
+                  );
+                }}
+                placeholder="HH:MM"
+              />
+
+              <button
+                onClick={() =>
+                  setWindowTemplates((prev) =>
+                    prev.filter((x) => x.id !== w.id)
+                  )
+                }
+                disabled={windowTemplates.length === 1}
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+
+          <button
+            onClick={() =>
+              setWindowTemplates((prev) => [
+                ...prev,
+                {
+                  id: crypto.randomUUID(),
+                  name: "New Window",
+                  start: "09:00",
+                  end: "10:00",
+                },
+              ])
+            }
+          >
+            Add Window
+          </button>
+        </section>
+
         {/* Add Staff */}
         <section>
           <h2>Add Staff</h2>
@@ -583,80 +661,18 @@ function SchedulerPage() {
             />
 
             <input
-              type="time"
+              type="text"
               value={staffStart}
               onChange={(e) => setStaffStart(e.target.value)}
+              placeholder="Start HH:MM"
             />
 
             <input
-              type="time"
+              type="text"
               value={staffEnd}
               onChange={(e) => setStaffEnd(e.target.value)}
+              placeholder="End HH:MM"
             />
-          </div>
-
-          <h4>Custom Windows</h4>
-
-          <div className="flex-row">
-            <div>
-              <strong>Breakfast</strong>
-              <br />
-              <input
-                type="time"
-                value={staffBreakfastStart}
-                onChange={(e) => setStaffBreakfastStart(e.target.value)}
-              />
-              <input
-                type="time"
-                value={staffBreakfastEnd}
-                onChange={(e) => setStaffBreakfastEnd(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <strong>Lunch</strong>
-              <br />
-              <input
-                type="time"
-                value={staffLunchStart}
-                onChange={(e) => setStaffLunchStart(e.target.value)}
-              />
-              <input
-                type="time"
-                value={staffLunchEnd}
-                onChange={(e) => setStaffLunchEnd(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <strong>Tea</strong>
-              <br />
-              <input
-                type="time"
-                value={staffTeaStart}
-                onChange={(e) => setStaffTeaStart(e.target.value)}
-              />
-              <input
-                type="time"
-                value={staffTeaEnd}
-                onChange={(e) => setStaffTeaEnd(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <strong>Evening</strong>
-              <br />
-              <input
-                type="time"
-                value={staffEveningStart}
-                onChange={(e) => setStaffEveningStart(e.target.value)}
-              />
-              <input
-                type="time"
-                value={staffEveningEnd}
-                onChange={(e) => setStaffEveningEnd(e.target.value)}
-              />
-            </div>
           </div>
 
           <button onClick={handleAddStaff}>Add Staff</button>
@@ -665,7 +681,9 @@ function SchedulerPage() {
             {staff.map((s) => (
               <li key={s.id}>
                 {s.name} — {s.postcode} — {s.availableStart}–{s.availableEnd}{" "}
-                <button onClick={() => handleDeleteStaff(s.id)}>Delete</button>
+                <button onClick={() => handleDeleteStaff(s.id)}>
+                  Remove Staff
+                </button>
               </li>
             ))}
           </ul>
@@ -673,101 +691,107 @@ function SchedulerPage() {
 
         {/* Add Appointment */}
         <section>
-          <h2>Add Appointment</h2>
+  <h2>Add Appointment</h2>
 
-          <div className="flex-row">
-            <input
-              type="text"
-              placeholder="Client Name (optional)"
-              value={apptName}
-              onChange={(e) => setApptName(e.target.value)}
-            />
+  {/* Group 1 — Client + Postcode */}
+  <div className="flex-column">
+    <input
+      type="text"
+      placeholder="Client Name (optional)"
+      value={apptName}
+      onChange={(e) => setApptName(e.target.value)}
+    />
 
-            <input
-              type="text"
-              placeholder="Postcode"
-              value={apptPostcode}
-              onChange={(e) => {
-                setApptPostcode(e.target.value);
-                setApptPostcodeError(false);
-              }}
-              className={apptPostcodeError ? "input-error" : ""}
-            />
+    <input
+      type="text"
+      placeholder="Postcode"
+      value={apptPostcode}
+      onChange={(e) => {
+        setApptPostcode(e.target.value);
+        setApptPostcodeError(false);
+      }}
+      className={apptPostcodeError ? "input-error" : ""}
+    />
+  </div>
 
-            <div>
-              <label className="label-small">Earliest Start</label>
-              <input
-                type="time"
-                value={apptEarliestStart}
-                onChange={(e) => setApptEarliestStart(e.target.value)}
-              />
-            </div>
+  {/* Group 2 — Required Windows */}
+  <div className="flex-column" style={{ marginTop: "10px" }}>
+    <label><strong>Required Windows:</strong></label>
 
-            <div>
-              <label className="label-small">Latest End</label>
-              <input
-                type="time"
-                value={apptLatestEnd}
-                onChange={(e) => setApptLatestEnd(e.target.value)}
-              />
-            </div>
+    {windowTemplates.map((w) => (
+      <label key={w.id} className="checkbox-row">
+        <input
+          type="checkbox"
+          checked={apptSelectedWindows.includes(w.id)}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setApptSelectedWindows((prev) => [...prev, w.id]);
+            } else {
+              setApptSelectedWindows((prev) =>
+                prev.filter((x) => x !== w.id)
+              );
+            }
+          }}
+        />
+        {w.name} ({w.start}–{w.end})
+      </label>
+    ))}
+  </div>
 
-            <select
-              value={apptDuration}
-              onChange={(e) => setApptDuration(Number(e.target.value))}
-            >
-              <option value={15}>15 min</option>
-              <option value={30}>30 min</option>
-              <option value={45}>45 min</option>
-              <option value={60}>60 min</option>
-            </select>
+  {/* Group 3 — Duration + Staff + Strict Start */}
+  <div className="flex-row" style={{ marginTop: "10px" }}>
+    <select
+      value={apptDuration}
+      onChange={(e) => setApptDuration(Number(e.target.value))}
+    >
+      <option value={15}>15 min</option>
+      <option value={30}>30 min</option>
+      <option value={45}>45 min</option>
+      <option value={60}>60 min</option>
+    </select>
 
-            <select
-              value={apptRequiredStaff}
-              onChange={(e) => setApptRequiredStaff(Number(e.target.value))}
-            >
-              <option value={1}>1 staff</option>
-              <option value={2}>2 staff</option>
-              <option value={3}>3 staff</option>
-            </select>
+    <select
+      value={apptRequiredStaff}
+      onChange={(e) => setApptRequiredStaff(Number(e.target.value))}
+    >
+      <option value={1}>1 staff</option>
+      <option value={2}>2 staff</option>
+      <option value={3}>3 staff</option>
+    </select>
 
-            <select
-              value={apptWindowType}
-              onChange={(e) => setApptWindowType(e.target.value)}
-            >
-              <option value="default">Default</option>
-              <option value="breakfast">Breakfast</option>
-              <option value="lunch">Lunch</option>
-              <option value="tea">Tea</option>
-              <option value="evening">Evening</option>
-            </select>
+    <label>
+      <input
+        type="checkbox"
+        checked={apptStrictStart}
+        onChange={(e) => setApptStrictStart(e.target.checked)}
+      />
+      Strict must-start time
+    </label>
+  </div>
 
-            <label>
-              <input
-                type="checkbox"
-                checked={apptStrictStart}
-                onChange={(e) => setApptStrictStart(e.target.checked)}
-              />{" "}
-              Strict must-start time
-            </label>
+  <button style={{ marginTop: "10px" }} onClick={handleAddAppointment}>
+    Add Appointment
+  </button>
 
-            <button onClick={handleAddAppointment}>Add Appointment</button>
-          </div>
-
-          <ul>
-            {appointments.map((a) => (
-              <li key={a.id}>
-                <strong>{a.name}</strong> — {a.postcode} ({a.earliestStart}–
-                {a.latestEnd}) {a.duration}min — needs {a.requiredStaff} staff —
-                type: {a.windowType} —{" "}
-                {a.strictStart ? "Strict start" : "Flexible"}{" "}
-                <button onClick={() => handleDeleteAppointment(a.id)}>
-                  Delete
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
+  {/* Appointment List */}
+  <ul style={{ marginTop: "10px" }}>
+    {appointments.map((a) => (
+      <li key={a.id}>
+        <strong>{a.name}</strong> — {a.postcode} —{" "}
+        {a.selectedWindows.length} visit
+        {a.selectedWindows.length > 1 ? "s" : ""} —{" "}
+        {a.selectedWindows
+          .map((id) => windowTemplates.find((w) => w.id === id)?.name)
+          .join(", ")}{" "}
+        — {a.duration}min — needs {a.requiredStaff} staff —{" "}
+        {a.strictStart ? "Strict start" : "Flexible"}{" "}
+        <button onClick={() => handleDeleteAppointment(a.id)}>
+          Delete
+        </button>
+      </li>
+    ))}
+  </ul>
+</section>
 
         {/* Generate Schedule */}
         <section>
@@ -814,7 +838,21 @@ function SchedulerPage() {
                 {jobs.length === 0 && <p>No jobs assigned.</p>}
 
                 {jobs.map((job, idx) => (
-                  <div key={job.id + "-" + job.actualStart}>
+                  <div
+                    key={job.id + "-" + idx}
+                    draggable
+                    onDragStart={() =>
+                      setDragState({ staffName: name, fromIndex: idx })
+                    }
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => {
+                      if (dragState.staffName === name) {
+                        reorderJobs(name, dragState.fromIndex, idx);
+                      }
+                      setDragState({ staffName: null, fromIndex: null });
+                    }}
+                    className="job-draggable"
+                  >
                     <strong>
                       #{idx + 1} {job.name}
                     </strong>{" "}
@@ -823,11 +861,8 @@ function SchedulerPage() {
                     {fromMinutes(job.actualStart)}–
                     {fromMinutes(job.actualEnd)}
                     <br />
-                    (global window {job.earliestStart}–{job.latestEnd}
-                    {job.staffWindow
-                      ? `, staff window ${job.staffWindow.start}–${job.staffWindow.end}`
-                      : ""}
-                    , travel {job.travelMinutes} min
+                    ({job.staffWindow?.name} window {job.staffWindow?.start}–
+                    {job.staffWindow?.end}, travel {job.travelMinutes} min
                     {job.strictStart ? ", strict start" : ""})
                   </div>
                 ))}
