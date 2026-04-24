@@ -3,15 +3,19 @@ import "./Header.css";
 import { supabase } from "./supabaseClient";
 
 export default function Header() {
-  async function handleUpgrade() {
-    const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) {
+  // ⭐ Corrected upgrade handler (works when logged in)
+  async function handleUpgrade() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session) {
       alert("Please log in to upgrade.");
       return;
     }
 
-    const token = (await supabase.auth.getSession()).data.session?.access_token;
+    const token = session.access_token;
 
     const response = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout`,
@@ -21,12 +25,17 @@ export default function Header() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ userId: user.id }),
+        body: JSON.stringify({ userId: session.user.id }),
       }
     );
 
     const data = await response.json();
-    if (data.url) window.location.href = data.url;
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      console.error("Checkout error:", data);
+      alert("Something went wrong starting checkout.");
+    }
   }
 
   return (
@@ -40,17 +49,17 @@ export default function Header() {
         <Link to="/learn" className="header-link">Learn More</Link>
         <Link to="/feedback" className="header-link">Feedback</Link>
 
-        {/* ⭐ NEW Login/Register button */}
+        {/* Login/Register */}
         <Link to="/auth" className="header-login-btn">
           Login / Register
         </Link>
 
-        {/* ⭐ Upgrade button */}
+        {/* Upgrade to Pro */}
         <button className="header-upgrade-btn" onClick={handleUpgrade}>
           Upgrade to Pro
         </button>
 
-        {/* ⭐ Existing free scheduler access */}
+        {/* Free scheduler */}
         <Link to="/app" className="header-button">Get Started</Link>
       </nav>
     </header>

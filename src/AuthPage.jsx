@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { supabase } from "./supabaseClient";
+import Header from "./Header";
+import "./AuthPage.css";
 
 export default function AuthPage() {
   const [email, setEmail] = useState("");
@@ -22,7 +24,7 @@ export default function AuthPage() {
           password,
         });
         if (error) throw error;
-        setMessage("Logged in!");
+        window.location.href = "/app";
       }
     } catch (err) {
       setMessage(err.message);
@@ -30,39 +32,52 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="auth-container">
-      <h2>{mode === "login" ? "Login" : "Create Account"}</h2>
+    <>
+      <Header />
 
-      <form onSubmit={handleSubmit}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+      <div className="auth-wrapper">
+        <div className="auth-container">
+          <h2>{mode === "login" ? "Login" : "Create Account"}</h2>
 
-        <input
-          type="password"
-          placeholder="Password (min 6 chars)"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+          <form onSubmit={handleSubmit}>
+            <input
+              type="email"
+              placeholder="Email address"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
 
-        <button type="submit">
-          {mode === "login" ? "Login" : "Sign Up"}
-        </button>
-      </form>
+            <input
+              type="password"
+              placeholder="Password (min 6 chars)"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
 
-      {message && <p>{message}</p>}
+            <button type="submit">
+              {mode === "login" ? "Login" : "Sign Up"}
+            </button>
+          </form>
 
-      <p
-        className="auth-switch"
-        onClick={() => setMode(mode === "login" ? "signup" : "login")}
-      >
-        {mode === "login"
-          ? "Need an account? Sign up"
-          : "Already have an account? Log in"}
-      </p>
-    </div>
+          {message && <p className="auth-message">{message}</p>}
+
+          <p className="auth-switch">
+            {mode === "login" ? (
+              <>
+                Need an account?{" "}
+                <span onClick={() => setMode("signup")}>Sign up</span>
+              </>
+            ) : (
+              <>
+                Already have an account?{" "}
+                <span onClick={() => setMode("login")}>Log in</span>
+              </>
+            )}
+          </p>
+        </div>
+      </div>
+    </>
   );
 }
