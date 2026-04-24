@@ -5,6 +5,7 @@ import SchedulerPage from "./SchedulerPage";
 import LearnPage from "./LearnPage";
 import FeedbackPage from "./FeedbackPage";
 import { supabase } from './supabaseClient';
+import AuthPage from "./AuthPage";
 
 async function testRead() {
   const { data, error } = await supabase
@@ -54,7 +55,8 @@ export default function App() {
   <Route path="/" element={<HomePage />} />
   <Route path="/app" element={<SchedulerPage />} />
   <Route path="/learn" element={<LearnPage />} />   {/* <-- Add this */}
-  <Route path="/feedback" element={<FeedbackPage />} />   {/* <-- Add this */}
+  <Route path="/feedback" element={<FeedbackPage />} /> 
+  <Route path="/auth" element={<AuthPage />} />
 </Routes>
     </BrowserRouter>
   );

@@ -16,7 +16,7 @@
   z-index: 1000;
 }
 
-/* === LEFT SQUARE LOGO BLOCK === */
+/* === LEFT LOGO BLOCK === */
 .header-logo-block {
   height: 200px;
   width: 100px;
@@ -42,7 +42,7 @@
   flex-wrap: nowrap;
 }
 
-/* === LINKS === */
+/* === NAV LINKS === */
 .header-link {
   font-family: "Inter", sans-serif;
   font-size: 16px;
@@ -75,7 +75,7 @@
   background-color: #2f9a3d;
 }
 
-/* === PRIMARY CTA BUTTON === */
+/* === PRIMARY CTA BUTTON (Get Started) === */
 .header-button {
   background-color: #021092;
   color: #fff;

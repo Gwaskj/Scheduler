@@ -26,22 +26,13 @@ export default function Header() {
     );
 
     const data = await response.json();
-
-    if (data.url) {
-      window.location.href = data.url;
-    } else {
-      console.error("Checkout error:", data);
-      alert("Something went wrong starting checkout.");
-    }
+    if (data.url) window.location.href = data.url;
   }
 
   return (
     <header className="header">
       <div className="header-logo-block">
-        <img
-          src="/images/Logo.png"
-          alt="Route Scheduler Logo"
-        />
+        <img src="/images/Logo.png" alt="Route Scheduler Logo" />
       </div>
 
       <nav className="header-right">
@@ -49,11 +40,17 @@ export default function Header() {
         <Link to="/learn" className="header-link">Learn More</Link>
         <Link to="/feedback" className="header-link">Feedback</Link>
 
-        {/* ⭐ Upgrade Button */}
+        {/* ⭐ NEW Login/Register button */}
+        <Link to="/auth" className="header-login-btn">
+          Login / Register
+        </Link>
+
+        {/* ⭐ Upgrade button */}
         <button className="header-upgrade-btn" onClick={handleUpgrade}>
           Upgrade to Pro
         </button>
 
+        {/* ⭐ Existing free scheduler access */}
         <Link to="/app" className="header-button">Get Started</Link>
       </nav>
     </header>
