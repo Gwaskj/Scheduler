@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import "./Header.css";
-import { supabase } from "../supabaseClient";
+import { supabase } from "./supabaseClient";
 
 export default function Header() {
   async function handleUpgrade() {
