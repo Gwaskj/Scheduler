@@ -5,10 +5,42 @@ import React, { useState, useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet";
 import "./SchedulerPage.css";
 import Header from "./Header";
+import { supabase } from "./supabaseClient";
 
 const ORS_API_KEY = import.meta.env.VITE_ORS_API_KEY;
 
 // ---------- Time helpers ----------
+
+function normaliseTime(input) {
+  if (!input) return "";
+
+  let t = input.toString().trim();
+  t = t.replace(/[-.]/g, ":");
+
+  if (/^\d{1,2}$/.test(t)) {
+    return t.padStart(2, "0") + ":00";
+  }
+
+  if (/^\d{3,4}$/.test(t)) {
+    const h = t.slice(0, t.length - 2).padStart(2, "0");
+    const m = t.slice(-2);
+    return `${h}:${m}`;
+  }
+
+  if (/^\d{1,2}:\d{1,2}$/.test(t)) {
+    const [h, m] = t.split(":");
+    return `${h.padStart(2, "0")}:${m.padStart(2, "0")}`;
+  }
+
+  const match = /^(\d{1,2}):(\d{1,2})$/.exec(t);
+  if (match) {
+    const h = match[1].padStart(2, "0");
+    const m = match[2].padStart(2, "0");
+    return `${h}:${m}`;
+  }
+
+  return t;
+}
 
 function toMinutes(hhmm) {
   if (!hhmm) return 0;
@@ -163,6 +195,9 @@ const MIN_GAP_BETWEEN_TYPES = 15;
 // ---------- Component ----------
 
 function SchedulerPage() {
+  const [user, setUser] = useState(null);
+  const [userLoaded, setUserLoaded] = useState(false);
+
   const [staff, setStaff] = useState([]);
   const [appointments, setAppointments] = useState([]);
   const [schedule, setSchedule] = useState({});
@@ -176,12 +211,12 @@ function SchedulerPage() {
     fromIndex: null,
   });
 
-  // Global window templates
+  // Window templates now include duration (per window)
   const [windowTemplates, setWindowTemplates] = useState([
-    { id: "breakfast", name: "Breakfast", start: "08:00", end: "10:00" },
-    { id: "lunch", name: "Lunch", start: "12:00", end: "14:00" },
-    { id: "tea", name: "Tea", start: "15:00", end: "17:00" },
-    { id: "evening", name: "Evening", start: "17:00", end: "19:00" },
+    { id: "breakfast", name: "Breakfast", start: "08:00", end: "10:00", duration: 30 },
+    { id: "lunch", name: "Lunch", start: "12:00", end: "14:00", duration: 30 },
+    { id: "tea", name: "Tea", start: "15:00", end: "17:00", duration: 30 },
+    { id: "evening", name: "Evening", start: "17:00", end: "19:00", duration: 30 },
   ]);
 
   // Staff form
@@ -194,7 +229,6 @@ function SchedulerPage() {
   // Appointment form
   const [apptName, setApptName] = useState("");
   const [apptPostcode, setApptPostcode] = useState("");
-  const [apptDuration, setApptDuration] = useState(30);
   const [apptRequiredStaff, setApptRequiredStaff] = useState(1);
   const [apptStrictStart, setApptStrictStart] = useState(false);
   const [apptPostcodeError, setApptPostcodeError] = useState(false);
@@ -202,28 +236,110 @@ function SchedulerPage() {
   // Selected windows for appointment
   const [apptSelectedWindows, setApptSelectedWindows] = useState([]);
 
-  // ---------- Local storage ----------
+  const isPaidUser = !!user;
+
+  // ---------- Auth + initial load ----------
 
   useEffect(() => {
-    try {
-      const s = localStorage.getItem("staff");
-      const a = localStorage.getItem("appointments");
-      if (s) setStaff(JSON.parse(s));
-      if (a) setAppointments(JSON.parse(a));
-    } catch {}
+    async function fetchUserAndData() {
+      try {
+        const {
+          data: { user: currentUser },
+        } = await supabase.auth.getUser();
+        setUser(currentUser || null);
+      } catch (e) {
+        console.error("Error getting user:", e);
+      } finally {
+        setUserLoaded(true);
+      }
+    }
+
+    fetchUserAndData();
   }, []);
 
   useEffect(() => {
-    try {
-      localStorage.setItem("staff", JSON.stringify(staff));
-    } catch {}
-  }, [staff]);
+    if (!userLoaded) return;
+
+    async function loadDataForUser() {
+      if (isPaidUser) {
+        // Paid tier → Supabase
+        try {
+          const { data: staffRows, error: staffErr } = await supabase
+            .from("staff")
+            .select("*")
+            .eq("user_id", user.id);
+
+          if (staffErr) throw staffErr;
+
+          const mappedStaff =
+            staffRows?.map((row) => ({
+              id: row.id,
+              name: row.name,
+              postcode: row.postcode,
+              lat: row.lat,
+              lon: row.lon,
+              availableStart: row.available_start || "08:00",
+              availableEnd: row.available_end || "17:00",
+              customWindows: row.custom_windows || {},
+            })) || [];
+
+          setStaff(mappedStaff);
+
+          const { data: apptRows, error: apptErr } = await supabase
+            .from("appointments")
+            .select("*")
+            .eq("user_id", user.id);
+
+          if (apptErr) throw apptErr;
+
+          const mappedAppointments =
+            apptRows?.map((row) => ({
+              id: row.id,
+              name: row.name,
+              postcode: row.postcode,
+              lat: row.lat,
+              lon: row.lon,
+              requiredStaff: row.required_staff || 1,
+              strictStart: row.strict_start || false,
+              selectedWindows: row.selected_windows || [],
+            })) || [];
+
+          setAppointments(mappedAppointments);
+        } catch (e) {
+          console.error("Error loading Supabase data:", e);
+        }
+      } else {
+        // Free tier → localStorage
+        try {
+          const s = localStorage.getItem("staff");
+          const a = localStorage.getItem("appointments");
+          if (s) setStaff(JSON.parse(s));
+          if (a) setAppointments(JSON.parse(a));
+        } catch (e) {
+          console.error("Error loading from localStorage:", e);
+        }
+      }
+    }
+
+    loadDataForUser();
+  }, [userLoaded, isPaidUser, user]);
+
+  // Persist to localStorage only for free users
+  useEffect(() => {
+    if (!isPaidUser) {
+      try {
+        localStorage.setItem("staff", JSON.stringify(staff));
+      } catch {}
+    }
+  }, [staff, isPaidUser]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem("appointments", JSON.stringify(appointments));
-    } catch {}
-  }, [appointments]);
+    if (!isPaidUser) {
+      try {
+        localStorage.setItem("appointments", JSON.stringify(appointments));
+      } catch {}
+    }
+  }, [appointments, isPaidUser]);
 
   // ---------- Map fit ----------
 
@@ -275,6 +391,11 @@ function SchedulerPage() {
       return;
     }
 
+    if (!isPaidUser && staff.length >= 3) {
+      alert("Free tier limit reached: max 3 staff. Create an account to unlock unlimited staff.");
+      return;
+    }
+
     const lookup = await lookupPostcodeCoords(staffPostcode);
     if (!lookup.ok) {
       setStaffPostcodeError(true);
@@ -282,12 +403,16 @@ function SchedulerPage() {
       return;
     }
 
+    const normalisedStart = normaliseTime(staffStart);
+    const normalisedEnd = normaliseTime(staffEnd);
+
     const customWindows = {};
     windowTemplates.forEach((w) => {
       customWindows[w.id] = {
         name: w.name,
         start: w.start,
         end: w.end,
+        duration: w.duration,
       };
     });
 
@@ -297,19 +422,76 @@ function SchedulerPage() {
       postcode: lookup.postcode,
       lat: lookup.lat,
       lon: lookup.lon,
-      availableStart: staffStart,
-      availableEnd: staffEnd,
+      availableStart: normalisedStart,
+      availableEnd: normalisedEnd,
       customWindows,
     };
 
-    setStaff((prev) => [...prev, newStaff]);
+    if (isPaidUser) {
+      try {
+        const { data, error } = await supabase
+          .from("staff")
+          .insert([
+            {
+              id: newStaff.id,
+              name: newStaff.name,
+              postcode: newStaff.postcode,
+              lat: newStaff.lat,
+              lon: newStaff.lon,
+              available_start: newStaff.availableStart,
+              available_end: newStaff.availableEnd,
+              custom_windows: newStaff.customWindows,
+              user_id: user.id,
+            },
+          ])
+          .select();
+
+        if (error) throw error;
+        const inserted = data[0];
+        setStaff((prev) => [
+          ...prev,
+          {
+            id: inserted.id,
+            name: inserted.name,
+            postcode: inserted.postcode,
+            lat: inserted.lat,
+            lon: inserted.lon,
+            availableStart: inserted.available_start,
+            availableEnd: inserted.available_end,
+            customWindows: inserted.custom_windows || {},
+          },
+        ]);
+      } catch (e) {
+        console.error("Error inserting staff:", e);
+        alert("Error saving staff to server.");
+        return;
+      }
+    } else {
+      setStaff((prev) => [...prev, newStaff]);
+    }
+
     setStaffName("");
     setStaffPostcode("");
     setStaffStart("08:00");
     setStaffEnd("17:00");
   };
 
-  const handleDeleteStaff = (id) => {
+  const handleDeleteStaff = async (id) => {
+    if (isPaidUser) {
+      try {
+        const { error } = await supabase
+          .from("staff")
+          .delete()
+          .eq("id", id)
+          .eq("user_id", user.id);
+        if (error) throw error;
+      } catch (e) {
+        console.error("Error deleting staff:", e);
+        alert("Error deleting staff from server.");
+        return;
+      }
+    }
+
     setStaff((prev) => prev.filter((s) => s.id !== id));
     setSchedule((prev) => {
       const copy = { ...prev };
@@ -334,6 +516,11 @@ function SchedulerPage() {
       return;
     }
 
+    if (!isPaidUser && appointments.length >= 10) {
+      alert("Free tier limit reached: max 10 appointments. Create an account to unlock unlimited appointments.");
+      return;
+    }
+
     const lookup = await lookupPostcodeCoords(apptPostcode);
     if (!lookup.ok) {
       setApptPostcodeError(true);
@@ -347,20 +534,78 @@ function SchedulerPage() {
       postcode: lookup.postcode,
       lat: lookup.lat,
       lon: lookup.lon,
-      duration: Number(apptDuration),
       requiredStaff: Number(apptRequiredStaff),
       strictStart: apptStrictStart,
       selectedWindows: [...apptSelectedWindows],
     };
 
-    setAppointments((prev) => [...prev, newAppt]);
+    if (isPaidUser) {
+      try {
+        const { data, error } = await supabase
+          .from("appointments")
+          .insert([
+            {
+              id: newAppt.id,
+              name: newAppt.name,
+              postcode: newAppt.postcode,
+              lat: newAppt.lat,
+              lon: newAppt.lon,
+              required_staff: newAppt.requiredStaff,
+              strict_start: newAppt.strictStart,
+              selected_windows: newAppt.selectedWindows,
+              user_id: user.id,
+            },
+          ])
+          .select();
+
+        if (error) throw error;
+        const inserted = data[0];
+        setAppointments((prev) => [
+          ...prev,
+          {
+            id: inserted.id,
+            name: inserted.name,
+            postcode: inserted.postcode,
+            lat: inserted.lat,
+            lon: inserted.lon,
+            requiredStaff: inserted.required_staff || 1,
+            strictStart: inserted.strict_start || false,
+            selectedWindows: inserted.selected_windows || [],
+          },
+        ]);
+      } catch (e) {
+        console.error("Error inserting appointment:", e);
+        alert("Error saving appointment to server.");
+        return;
+      }
+    } else {
+      setAppointments((prev) => [...prev, newAppt]);
+    }
 
     setApptName("");
     setApptPostcode("");
-    setApptDuration(30);
     setApptRequiredStaff(1);
     setApptStrictStart(false);
     setApptSelectedWindows([]);
+  };
+
+  const handleDeleteAppointment = async (id) => {
+    if (isPaidUser) {
+      try {
+        const { error } = await supabase
+          .from("appointments")
+          .delete()
+          .eq("id", id)
+          .eq("user_id", user.id);
+        if (error) throw error;
+      } catch (e) {
+        console.error("Error deleting appointment:", e);
+        alert("Error deleting appointment from server.");
+        return;
+      }
+    }
+
+    setAppointments((prev) => prev.filter((a) => a.id !== id));
   };
 
   // ---------- Scheduler ----------
@@ -374,7 +619,6 @@ function SchedulerPage() {
     setLoading(true);
 
     try {
-      // Expand each appointment into multiple window-specific jobs
       let expanded = [];
       for (const appt of appointments) {
         for (const winId of appt.selectedWindows) {
@@ -383,10 +627,11 @@ function SchedulerPage() {
 
           expanded.push({
             ...appt,
-            jobId: crypto.randomUUID(), // unique per window visit
+            jobId: crypto.randomUUID(),
             windowType: winId,
             earliestStart: template.start,
             latestEnd: template.end,
+            duration: template.duration,
           });
         }
       }
@@ -396,7 +641,6 @@ function SchedulerPage() {
       const jobStartTimes = {};
       const result = {};
 
-      // Priority = order in windowTemplates
       const priorityMap = {};
       windowTemplates.forEach((w, idx) => {
         priorityMap[w.id] = idx + 1;
@@ -565,7 +809,6 @@ function SchedulerPage() {
     <>
       <Header />
       <div className="app-container">
-
         {/* Custom Windows */}
         <section>
           <h2>Custom Time Windows</h2>
@@ -593,6 +836,13 @@ function SchedulerPage() {
                     prev.map((x) => (x.id === w.id ? { ...x, start } : x))
                   );
                 }}
+                onBlur={() => {
+                  setWindowTemplates((prev) =>
+                    prev.map((x) =>
+                      x.id === w.id ? { ...x, start: normaliseTime(x.start) } : x
+                    )
+                  );
+                }}
                 placeholder="HH:MM"
               />
 
@@ -605,8 +855,32 @@ function SchedulerPage() {
                     prev.map((x) => (x.id === w.id ? { ...x, end } : x))
                   );
                 }}
+                onBlur={() => {
+                  setWindowTemplates((prev) =>
+                    prev.map((x) =>
+                      x.id === w.id ? { ...x, end: normaliseTime(x.end) } : x
+                    )
+                  );
+                }}
                 placeholder="HH:MM"
               />
+
+              <select
+                value={w.duration}
+                onChange={(e) => {
+                  const duration = Number(e.target.value);
+                  setWindowTemplates((prev) =>
+                    prev.map((x) =>
+                      x.id === w.id ? { ...x, duration } : x
+                    )
+                  );
+                }}
+              >
+                <option value={15}>15 min</option>
+                <option value={30}>30 min</option>
+                <option value={45}>45 min</option>
+                <option value={60}>60 min</option>
+              </select>
 
               <button
                 onClick={() =>
@@ -630,6 +904,7 @@ function SchedulerPage() {
                   name: "New Window",
                   start: "09:00",
                   end: "10:00",
+                  duration: 30,
                 },
               ])
             }
@@ -665,6 +940,7 @@ function SchedulerPage() {
               type="text"
               value={staffStart}
               onChange={(e) => setStaffStart(e.target.value)}
+              onBlur={() => setStaffStart(normaliseTime(staffStart))}
               placeholder="Start HH:MM"
             />
 
@@ -672,6 +948,7 @@ function SchedulerPage() {
               type="text"
               value={staffEnd}
               onChange={(e) => setStaffEnd(e.target.value)}
+              onBlur={() => setStaffEnd(normaliseTime(staffEnd))}
               placeholder="End HH:MM"
             />
           </div>
@@ -692,107 +969,100 @@ function SchedulerPage() {
 
         {/* Add Appointment */}
         <section>
-  <h2>Add Appointment</h2>
+          <h2>Add Appointment</h2>
 
-  {/* Group 1 — Client + Postcode */}
-  <div className="flex-column">
-    <input
-      type="text"
-      placeholder="Client Name (optional)"
-      value={apptName}
-      onChange={(e) => setApptName(e.target.value)}
-    />
+          <div className="flex-column">
+            <input
+              type="text"
+              placeholder="Client Name (optional)"
+              value={apptName}
+              onChange={(e) => setApptName(e.target.value)}
+            />
 
-    <input
-      type="text"
-      placeholder="Postcode"
-      value={apptPostcode}
-      onChange={(e) => {
-        setApptPostcode(e.target.value);
-        setApptPostcodeError(false);
-      }}
-      className={apptPostcodeError ? "input-error" : ""}
-    />
-  </div>
+            <input
+              type="text"
+              placeholder="Postcode"
+              value={apptPostcode}
+              onChange={(e) => {
+                setApptPostcode(e.target.value);
+                setApptPostcodeError(false);
+              }}
+              className={apptPostcodeError ? "input-error" : ""}
+            />
+          </div>
 
-  {/* Group 2 — Required Windows */}
-  <div className="flex-column" style={{ marginTop: "10px" }}>
-    <label><strong>Required Windows:</strong></label>
+          <div className="flex-column" style={{ marginTop: "10px" }}>
+            <label>
+              <strong>Required Windows:</strong>
+            </label>
 
-    {windowTemplates.map((w) => (
-      <label key={w.id} className="checkbox-row">
-        <input
-          type="checkbox"
-          checked={apptSelectedWindows.includes(w.id)}
-          onChange={(e) => {
-            if (e.target.checked) {
-              setApptSelectedWindows((prev) => [...prev, w.id]);
-            } else {
-              setApptSelectedWindows((prev) =>
-                prev.filter((x) => x !== w.id)
-              );
-            }
-          }}
-        />
-        {w.name} ({w.start}–{w.end})
-      </label>
-    ))}
-  </div>
+            {windowTemplates.map((w) => (
+              <label key={w.id} className="checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={apptSelectedWindows.includes(w.id)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setApptSelectedWindows((prev) => [...prev, w.id]);
+                    } else {
+                      setApptSelectedWindows((prev) =>
+                        prev.filter((x) => x !== w.id)
+                      );
+                    }
+                  }}
+                />
+                {w.name} ({w.start}–{w.end}, {w.duration} min)
+              </label>
+            ))}
+          </div>
 
-  {/* Group 3 — Duration + Staff + Strict Start */}
-  <div className="flex-row" style={{ marginTop: "10px" }}>
-    <select
-      value={apptDuration}
-      onChange={(e) => setApptDuration(Number(e.target.value))}
-    >
-      <option value={15}>15 min</option>
-      <option value={30}>30 min</option>
-      <option value={45}>45 min</option>
-      <option value={60}>60 min</option>
-    </select>
+          <div className="flex-row" style={{ marginTop: "10px" }}>
+            <select
+              value={apptRequiredStaff}
+              onChange={(e) => setApptRequiredStaff(Number(e.target.value))}
+            >
+              <option value={1}>1 staff</option>
+              <option value={2}>2 staff</option>
+              <option value={3}>3 staff</option>
+            </select>
 
-    <select
-      value={apptRequiredStaff}
-      onChange={(e) => setApptRequiredStaff(Number(e.target.value))}
-    >
-      <option value={1}>1 staff</option>
-      <option value={2}>2 staff</option>
-      <option value={3}>3 staff</option>
-    </select>
+            <label>
+              <input
+                type="checkbox"
+                checked={apptStrictStart}
+                onChange={(e) => setApptStrictStart(e.target.checked)}
+              />
+              Strict must-start time
+            </label>
+          </div>
 
-    <label>
-      <input
-        type="checkbox"
-        checked={apptStrictStart}
-        onChange={(e) => setApptStrictStart(e.target.checked)}
-      />
-      Strict must-start time
-    </label>
-  </div>
+          <button style={{ marginTop: "10px" }} onClick={handleAddAppointment}>
+            Add Appointment
+          </button>
 
-  <button style={{ marginTop: "10px" }} onClick={handleAddAppointment}>
-    Add Appointment
-  </button>
-
-  {/* Appointment List */}
-  <ul style={{ marginTop: "10px" }}>
-    {appointments.map((a) => (
-      <li key={a.id}>
-        <strong>{a.name}</strong> — {a.postcode} —{" "}
-        {a.selectedWindows.length} visit
-        {a.selectedWindows.length > 1 ? "s" : ""} —{" "}
-        {a.selectedWindows
-          .map((id) => windowTemplates.find((w) => w.id === id)?.name)
-          .join(", ")}{" "}
-        — {a.duration}min — needs {a.requiredStaff} staff —{" "}
-        {a.strictStart ? "Strict start" : "Flexible"}{" "}
-        <button onClick={() => handleDeleteAppointment(a.id)}>
-          Delete
-        </button>
-      </li>
-    ))}
-  </ul>
-</section>
+          <ul style={{ marginTop: "10px" }}>
+            {appointments.map((a) => (
+              <li key={a.id}>
+                <strong>{a.name}</strong> — {a.postcode} —{" "}
+                {a.selectedWindows.length} visit
+                {a.selectedWindows.length > 1 ? "s" : ""} —{" "}
+                {a.selectedWindows
+                  .map((id) => {
+                    const w = windowTemplates.find((w) => w.id === id);
+                    if (!w) return null;
+                    return `${w.name} (${w.duration} min)`;
+                  })
+                  .filter(Boolean)
+                  .join(", ")}{" "}
+                — needs {a.requiredStaff} staff —{" "}
+                {a.strictStart ? "Strict start" : "Flexible"}{" "}
+                <button onClick={() => handleDeleteAppointment(a.id)}>
+                  Delete
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
 
         {/* Generate Schedule */}
         <section>
@@ -871,7 +1141,9 @@ function SchedulerPage() {
             );
           })}
         </section>
-<AdBanner />
+
+        {!isPaidUser && <AdBanner />}
+
         {/* Map Controls */}
         <section>
           <h2>Map</h2>
@@ -947,7 +1219,8 @@ function SchedulerPage() {
             });
           })}
         </MapContainer>
-        <AdBanner />
+
+        {!isPaidUser && <AdBanner />}
       </div>
     </>
   );
