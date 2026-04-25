@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { supabase } from "./supabaseClient";
 import Header from "./Header";
 import "./AuthPage.css";
-import { useUserProfile } from "./hooks/useUserProfile";
 
 export default function AuthPage() {
   const [email, setEmail] = useState("");
