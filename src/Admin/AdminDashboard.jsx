@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { supabase } from "./supabaseClient";
+import { supabase } from "../supabaseClient";
 import StaffModal from "./StaffModal";
 import AppointmentModal from "./AppointmentModal";
-import AdminRoute from "./Admin/AdminRoute";
+import AdminRoute from "./AdminRoute";
 
 const PAGE_SIZE = 20;
 
