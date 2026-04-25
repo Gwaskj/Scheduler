@@ -1,6 +1,6 @@
 import { Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { supabase } from "../supabaseClient";
+import { supabase } from "./supabaseClient";
 
 export default function AdminRoute({ children }) {
   const [allowed, setAllowed] = useState(null);
