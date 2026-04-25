@@ -5,7 +5,7 @@ import SchedulerPage from "./SchedulerPage";
 import LearnPage from "./LearnPage";
 import FeedbackPage from "./FeedbackPage";
 import AuthPage from "./AuthPage";
-import AdminRoute 
+import AdminRoute from "./Admin/AdminRoute";
 import AdminDashboard from "./Admin/AdminDashboard";
 
 export default function App() {
