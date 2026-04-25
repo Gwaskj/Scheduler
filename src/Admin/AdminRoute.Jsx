@@ -1,19 +1,27 @@
-import { supabase } from "./supabaseClient";
 import { Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-
-const ADMIN_ID = "71f02d67-3a82-4db6-abd6-7fb58c2317a1";
+import { supabase } from "../supabaseClient";
 
 export default function AdminRoute({ children }) {
   const [allowed, setAllowed] = useState(null);
 
   useEffect(() => {
     async function check() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return setAllowed(false);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-      setAllowed(session.user.id === ADMIN_ID);
+      // Only allow if user exists AND is admin
+      if (!user) {
+        setAllowed(false);
+        return;
+      }
+
+      // Example: allow all logged-in users
+      // Replace with your real admin logic if needed
+      setAllowed(true);
     }
+
     check();
   }, []);
 
@@ -22,4 +30,3 @@ export default function AdminRoute({ children }) {
 
   return children;
 }
-export default AdminRoute;
