@@ -2,9 +2,9 @@ import { Link } from "react-router-dom";
 import "./Header.css";
 import { supabase } from "./supabaseClient";
 
-export default function Header() {
+export default function Header({ user, isPro }) {
 
-  // ⭐ Corrected upgrade handler (works when logged in)
+  // ⭐ Upgrade handler (Stripe Checkout)
   async function handleUpgrade() {
     const {
       data: { session },
@@ -38,6 +38,12 @@ export default function Header() {
     }
   }
 
+  // ⭐ Logout handler
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    window.location.href = "/";
+  }
+
   return (
     <header className="header">
       <div className="header-logo-block">
@@ -49,17 +55,35 @@ export default function Header() {
         <Link to="/learn" className="header-link">Learn More</Link>
         <Link to="/feedback" className="header-link">Feedback</Link>
 
-        {/* Login/Register */}
-        <Link to="/auth" className="header-login-btn">
-          Login / Register
-        </Link>
+        {/* ⭐ Not logged in */}
+        {!user && (
+          <Link to="/auth" className="header-login-btn">
+            Login / Register
+          </Link>
+        )}
 
-        {/* Upgrade to Pro */}
-        <button className="header-upgrade-btn" onClick={handleUpgrade}>
-          Upgrade to Pro
-        </button>
+        {/* ⭐ Logged in but NOT Pro */}
+        {user && !isPro && (
+          <button className="header-upgrade-btn" onClick={handleUpgrade}>
+            Upgrade to Pro
+          </button>
+        )}
 
-        {/* Free scheduler */}
+        {/* ⭐ Logged in AND Pro */}
+        {user && isPro && (
+          <span className="header-pro-badge">
+            PRO
+          </span>
+        )}
+
+        {/* ⭐ Logout button when logged in */}
+        {user && (
+          <button className="header-logout-btn" onClick={handleLogout}>
+            Logout
+          </button>
+        )}
+
+        {/* ⭐ Free scheduler */}
         <Link to="/app" className="header-button">Get Started</Link>
       </nav>
     </header>

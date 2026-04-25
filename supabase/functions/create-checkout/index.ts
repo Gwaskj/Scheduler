@@ -40,7 +40,12 @@ serve(async (req) => {
       ],
       success_url: `${Deno.env.get("SITE_URL")}/?success=true`,
       cancel_url: `${Deno.env.get("SITE_URL")}/?canceled=true`,
+
+      // ⭐ REQUIRED for webhook to work
       client_reference_id: userId,
+      metadata: {
+        user_id: userId,
+      },
     });
 
     return new Response(JSON.stringify({ url: session.url }), {

@@ -27,19 +27,58 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object;
-
-    const userId = session.client_reference_id;
-
-    await supabase
+  // Helper to update profile safely
+  async function updateProfile(userId: string, fields: Record<string, any>) {
+    const { error } = await supabase
       .from("profiles")
-      .update({
+      .update(fields)
+      .eq("id", userId);
+
+    if (error) {
+      console.error("Supabase update error:", error);
+    }
+  }
+
+  switch (event.type) {
+    case "checkout.session.completed": {
+      const session = event.data.object;
+      const userId = session.client_reference_id;
+
+      await updateProfile(userId, {
         is_pro: true,
         stripe_customer_id: session.customer,
         stripe_subscription_id: session.subscription,
-      })
-      .eq("id", userId);
+      });
+
+      break;
+    }
+
+    case "customer.subscription.updated": {
+      const sub = event.data.object;
+      const userId = sub.metadata.user_id;
+
+      const isActive =
+        sub.status === "active" || sub.status === "trialing";
+
+      await updateProfile(userId, {
+        is_pro: isActive,
+        stripe_subscription_id: sub.id,
+      });
+
+      break;
+    }
+
+    case "customer.subscription.deleted": {
+      const sub = event.data.object;
+      const userId = sub.metadata.user_id;
+
+      await updateProfile(userId, {
+        is_pro: false,
+        stripe_subscription_id: null,
+      });
+
+      break;
+    }
   }
 
   return new Response("ok", { status: 200 });

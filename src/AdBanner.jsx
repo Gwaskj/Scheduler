@@ -1,14 +1,23 @@
 import { useEffect } from "react";
+import { useUserProfile } from "./hooks/useUserProfile";
 
 export default function AdBanner() {
+  const { isPro } = useUserProfile();
+
+  // ⭐ Do NOT render ads for Pro users
+  if (isPro) return null;
+
   useEffect(() => {
-    // Load the AdSense script once
-    const script = document.createElement("script");
-    script.async = true;
-    script.src =
-      "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1904838490296389";
-    script.crossOrigin = "anonymous";
-    document.body.appendChild(script);
+    // Prevent duplicate script injection
+    if (!document.querySelector('script[data-adsbygoogle-loaded]')) {
+      const script = document.createElement("script");
+      script.async = true;
+      script.src =
+        "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1904838490296389";
+      script.crossOrigin = "anonymous";
+      script.setAttribute("data-adsbygoogle-loaded", "true");
+      document.body.appendChild(script);
+    }
 
     // Trigger ad load
     try {

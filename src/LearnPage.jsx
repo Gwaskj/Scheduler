@@ -51,7 +51,7 @@ export default function LearnPage() {
           to plan daily journeys without complicated software or manual
           spreadsheets.
         </p>
-        <AdBanner />
+        {!isPaidUser && <AdBanner />}
       </div>
     </>
   );

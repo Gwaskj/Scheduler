@@ -2,12 +2,16 @@ import React, { useState } from "react";
 import { supabase } from "./supabaseClient";
 import Header from "./Header";
 import "./AuthPage.css";
+import { useUserProfile } from "./hooks/useUserProfile";
 
 export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState("login");
   const [message, setMessage] = useState("");
+
+  // ⭐ Load user + pro status for Header
+  const { user, isPro } = useUserProfile();
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -24,6 +28,8 @@ export default function AuthPage() {
           password,
         });
         if (error) throw error;
+
+        // Redirect to app after login
         window.location.href = "/app";
       }
     } catch (err) {
@@ -33,7 +39,8 @@ export default function AuthPage() {
 
   return (
     <>
-      <Header />
+      {/* ⭐ Pass user + isPro to Header */}
+      <Header user={user} isPro={isPro} />
 
       <div className="auth-wrapper">
         <div className="auth-container">

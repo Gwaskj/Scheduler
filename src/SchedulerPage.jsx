@@ -500,7 +500,7 @@ function SchedulerPage() {
       return copy;
     });
   };
-
+{!isPaidUser && <AdBanner />}
   // ---------- Add appointment ----------
 
   const handleAddAppointment = async () => {
@@ -607,7 +607,7 @@ function SchedulerPage() {
 
     setAppointments((prev) => prev.filter((a) => a.id !== id));
   };
-
+{!isPaidUser && <AdBanner />}
   // ---------- Scheduler ----------
 
   const generateSchedule = async () => {

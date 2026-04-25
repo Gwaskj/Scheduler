@@ -31,7 +31,11 @@ export default function HomePage() {
           <button onClick={() => navigate("/learn")} className="btn-learn">
             Learn More
           </button>
-          <AdBanner />
+        </div>
+
+        {/* ⭐ Ad placed BELOW the buttons for best UX */}
+        <div className="home-ad-wrapper">
+          {!isPaidUser && <AdBanner />}
         </div>
       </div>
     </div>

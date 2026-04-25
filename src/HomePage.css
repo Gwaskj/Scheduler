@@ -86,3 +86,11 @@
 .btn-learn:hover {
   background-color: #e67332;
 }
+
+/* ⭐ NEW — Ad wrapper below buttons */
+.home-ad-wrapper {
+  margin-top: 30px;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
