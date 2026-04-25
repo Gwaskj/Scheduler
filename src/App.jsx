@@ -15,6 +15,14 @@ export default function App() {
         <Route path="/learn" element={<LearnPage />} />
         <Route path="/feedback" element={<FeedbackPage />} />
         <Route path="/auth" element={<AuthPage />} />
+        <Route
+  path="/admin"
+  element={
+    <AdminRoute>
+      <AdminDashboard />
+    </AdminRoute>
+  }
+/>
       </Routes>
     </BrowserRouter>
   );
