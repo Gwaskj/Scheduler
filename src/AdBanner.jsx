@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { useUserProfile } from "./hooks/useUserProfile";
 
 export default function AdBanner() {
   const { isPro } = useUserProfile();
