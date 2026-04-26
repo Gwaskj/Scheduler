@@ -89,7 +89,7 @@ async function lookupPostcodeCoords(rawPostcode) {
 // ---------- ORS Matrix ----------
 // ors-client.js (or whatever your file is called)
 
-const SUPABASE_URL = "https://<your-project-id>.supabase.co";
+const SUPABASE_URL = "https://oedkdgfnkrfupuwcroqt.supabase.co";
 const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // ---------- MATRIX ----------
