@@ -96,24 +96,13 @@ const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 export async function getMatrix(from, tos) {
   const url = `${SUPABASE_URL}/functions/v1/ors-matrix`;
 
-  const locations = [
-    [from.lon, from.lat],
-    ...tos.map((t) => [t.lon, t.lat]),
-  ];
-
-  const body = {
-    locations,
-    metrics: ["duration", "distance"],
-    units: "m",
-  };
-
   const res = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${ANON_KEY}`,
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ from, tos }),
   });
 
   if (!res.ok) {
@@ -135,20 +124,13 @@ export async function getMatrix(from, tos) {
 export async function getRouteGeometry(from, to) {
   const url = `${SUPABASE_URL}/functions/v1/ors-route`;
 
-  const body = {
-    coordinates: [
-      [from.lon, from.lat],
-      [to.lon, to.lat],
-    ],
-  };
-
   const res = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${ANON_KEY}`,
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ from, to }),
   });
 
   if (!res.ok) {
@@ -159,11 +141,7 @@ export async function getRouteGeometry(from, to) {
 
   const data = await res.json();
 
-  if (!data.features || !data.features[0]) {
-    throw new Error("Directions returned no features");
-  }
-
-  return data.features[0].geometry.coordinates;
+  return data.geometry || data.features?.[0]?.geometry?.coordinates;
 }
 
 // ---------- Route colours & offset ----------
