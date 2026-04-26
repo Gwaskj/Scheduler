@@ -87,9 +87,14 @@ async function lookupPostcodeCoords(rawPostcode) {
 }
 
 // ---------- ORS Matrix ----------
+// ors-client.js (or whatever your file is called)
 
-async function getMatrix(from, tos) {
-  const url = "https://api.openrouteservice.org/v2/matrix/driving-car";
+const SUPABASE_URL = "https://<your-project-id>.supabase.co";
+const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// ---------- MATRIX ----------
+export async function getMatrix(from, tos) {
+  const url = `${SUPABASE_URL}/functions/v1/ors-matrix`;
 
   const locations = [
     [from.lon, from.lat],
@@ -105,26 +110,30 @@ async function getMatrix(from, tos) {
   const res = await fetch(url, {
     method: "POST",
     headers: {
-      Authorization: ORS_API_KEY,
       "Content-Type": "application/json",
+      "Authorization": `Bearer ${ANON_KEY}`,
     },
     body: JSON.stringify(body),
   });
 
-  if (!res.ok) throw new Error("Matrix API error");
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("Matrix error:", text);
+    throw new Error("Matrix API error");
+  }
 
   const data = await res.json();
-  if (!data.durations || !data.distances)
+
+  if (!data.durations || !data.distances) {
     throw new Error("Matrix returned incomplete data");
+  }
 
   return data;
 }
 
-// ---------- ORS Directions ----------
-
-async function getRouteGeometry(from, to) {
-  const url =
-    "https://api.openrouteservice.org/v2/directions/driving-car/geojson";
+// ---------- ROUTE GEOMETRY ----------
+export async function getRouteGeometry(from, to) {
+  const url = `${SUPABASE_URL}/functions/v1/ors-route`;
 
   const body = {
     coordinates: [
@@ -136,15 +145,20 @@ async function getRouteGeometry(from, to) {
   const res = await fetch(url, {
     method: "POST",
     headers: {
-      Authorization: ORS_API_KEY,
       "Content-Type": "application/json",
+      "Authorization": `Bearer ${ANON_KEY}`,
     },
     body: JSON.stringify(body),
   });
 
-  if (!res.ok) throw new Error("Directions API error");
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("Route error:", text);
+    throw new Error("Directions API error");
+  }
 
   const data = await res.json();
+
   if (!data.features || !data.features[0]) {
     throw new Error("Directions returned no features");
   }
