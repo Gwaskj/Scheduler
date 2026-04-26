@@ -9,9 +9,6 @@ import { supabase } from "./supabaseClient";
 import { getRoute } from "./services/routeCache";
 import { getMatrix } from "./ors-client";
 
-
-const ORS_API_KEY = import.meta.env.VITE_ORS_API_KEY;
-
 // ---------- Time helpers ----------
 
 function normaliseTime(input) {
@@ -86,64 +83,6 @@ async function lookupPostcodeCoords(rawPostcode) {
 
   const { latitude, longitude, postcode } = data.result;
   return { ok: true, lat: latitude, lon: longitude, postcode };
-}
-
-// ---------- ORS Matrix ----------
-// ors-client.js (or whatever your file is called)
-
-const SUPABASE_URL = "https://oedkdgfnkrfupuwcroqt.supabase.co";
-const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-// ---------- MATRIX ----------
-export async function getMatrix(from, tos) {
-  const url = `${SUPABASE_URL}/functions/v1/ors-matrix`;
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${ANON_KEY}`,
-    },
-    body: JSON.stringify({ from, tos }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    console.error("Matrix error:", text);
-    throw new Error("Matrix API error");
-  }
-
-  const data = await res.json();
-
-  if (!data.durations || !data.distances) {
-    throw new Error("Matrix returned incomplete data");
-  }
-
-  return data;
-}
-
-// ---------- ROUTE GEOMETRY ----------
-export async function getRouteGeometry(from, to) {
-  const url = `${SUPABASE_URL}/functions/v1/ors-route`;
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${ANON_KEY}`,
-    },
-    body: JSON.stringify({ from, to }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    console.error("Route error:", text);
-    throw new Error("Directions API error");
-  }
-
-  const data = await res.json();
-
-  return data.geometry || data.features?.[0]?.geometry?.coordinates;
 }
 
 // ---------- Route colours & offset ----------
