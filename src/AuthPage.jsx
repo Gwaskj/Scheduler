@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { supabase } from "./supabaseClient";
 import Header from "./Header";
 import "./AuthPage.css";
+import { useUser } from "./context/UserContext"; // ⭐ NEW
 
 export default function AuthPage() {
   const [email, setEmail] = useState("");
@@ -9,8 +10,9 @@ export default function AuthPage() {
   const [mode, setMode] = useState("login");
   const [message, setMessage] = useState("");
 
-  // ⭐ Load user + pro status for Header
-  const { user, isPro } = useUserProfile();
+  // ⭐ Load user from global context
+  const { user } = useUser();
+  const isPro = !!user; // treat logged-in users as Pro for now
 
   async function handleSubmit(e) {
     e.preventDefault();

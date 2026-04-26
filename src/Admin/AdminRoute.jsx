@@ -1,32 +1,21 @@
 import { Navigate } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { supabase } from "../supabaseClient";
+import { useUser } from "../context/UserContext";
 
 export default function AdminRoute({ children }) {
-  const [allowed, setAllowed] = useState(null);
+  const { user, loading } = useUser();
 
-  useEffect(() => {
-    async function check() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+  // Still loading user from context
+  if (loading) return null;
 
-      // Only allow if user exists AND is admin
-      if (!user) {
-        setAllowed(false);
-        return;
-      }
+  // Not logged in → redirect
+  if (!user) return <Navigate to="/" replace />;
 
-      // Example: allow all logged-in users
-      // Replace with your real admin logic if needed
-      setAllowed(true);
-    }
+  // ⭐ Admin check (replace with your real admin UUID)
+  const ADMIN_ID = import.meta.env.VITE_ADMIN_USER_ID;
 
-    check();
-  }, []);
+  const isAdmin = user.id === ADMIN_ID;
 
-  if (allowed === null) return null; // loading
-  if (!allowed) return <Navigate to="/" replace />;
+  if (!isAdmin) return <Navigate to="/" replace />;
 
   return children;
 }

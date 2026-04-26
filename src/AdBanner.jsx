@@ -1,7 +1,9 @@
 import { useEffect } from "react";
+import { useUser } from "../context/UserContext";
 
 export default function AdBanner() {
-  const { isPro } = useUserProfile();
+  const { user } = useUser();
+  const isPro = !!user; // treat logged-in users as paid for now
 
   // ⭐ Do NOT render ads for Pro users
   if (isPro) return null;
@@ -12,28 +14,23 @@ export default function AdBanner() {
       const script = document.createElement("script");
       script.async = true;
       script.src =
-        "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1904838490296389";
+        "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-p";
       script.crossOrigin = "anonymous";
       script.setAttribute("data-adsbygoogle-loaded", "true");
       document.body.appendChild(script);
     }
-
-    // Trigger ad load
-    try {
-      (window.adsbygoogle = window.adsbygoogle || []).push({});
-    } catch (e) {
-      console.error("AdSense error:", e);
-    }
   }, []);
 
   return (
-    <ins
-      className="adsbygoogle"
-      style={{ display: "block", margin: "20px 0" }}
-      data-ad-client="ca-pub-1904838490296389"
-      data-ad-slot="9024022083"
-      data-ad-format="auto"
-      data-full-width-responsive="true"
-    ></ins>
+    <div className="ad-container">
+      <ins
+        className="adsbygoogle"
+        style={{ display: "block" }}
+        data-ad-client="ca-p"
+        data-ad-slot="1234567890"
+        data-ad-format="auto"
+        data-full-width-responsive="true"
+      ></ins>
+    </div>
   );
 }

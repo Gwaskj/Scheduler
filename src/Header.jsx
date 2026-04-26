@@ -1,8 +1,11 @@
 import { Link } from "react-router-dom";
 import "./Header.css";
 import { supabase } from "./supabaseClient";
+import { useUser } from "./context/UserContext"; // ⭐ NEW
 
-export default function Header({ user, isPro }) {
+export default function Header() {
+  const { user } = useUser();
+  const isPro = !!user; // treat logged-in users as Pro for now
 
   // ⭐ Upgrade handler (Stripe Checkout)
   async function handleUpgrade() {
@@ -71,9 +74,7 @@ export default function Header({ user, isPro }) {
 
         {/* ⭐ Logged in AND Pro */}
         {user && isPro && (
-          <span className="header-pro-badge">
-            PRO
-          </span>
+          <span className="header-pro-badge">PRO</span>
         )}
 
         {/* ⭐ Logout button when logged in */}
