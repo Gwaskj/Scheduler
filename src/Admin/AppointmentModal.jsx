@@ -1,6 +1,6 @@
 // AppointmentModal.jsx
 import { useState } from "react";
-import { supabase } from "./supabaseClient";
+import { supabase } from "supabaseClient";
 
 export default function AppointmentModal({ appt, onClose, onSaved }) {
   const [form, setForm] = useState({
