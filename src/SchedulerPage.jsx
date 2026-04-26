@@ -6,6 +6,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet"
 import "./SchedulerPage.css";
 import Header from "./Header";
 import { supabase } from "./supabaseClient";
+import { getRoute } from "./services/routeCache";
 
 const ORS_API_KEY = import.meta.env.VITE_ORS_API_KEY;
 
@@ -752,10 +753,12 @@ function SchedulerPage() {
 
           if (!best) break;
 
-          const routeGeometry = await getRouteGeometry(currentCoords, {
-            lat: best.job.lat,
-            lon: best.job.lon,
-          });
+const route = await getRoute(
+  { lat: currentCoords.lat, lon: currentCoords.lon },
+  { lat: best.job.lat, lon: best.job.lon }
+);
+
+const routeGeometry = route.geometry;
 
           if (jobStartTimes[best.job.jobId] === undefined) {
             jobStartTimes[best.job.jobId] = best.actualStart;
