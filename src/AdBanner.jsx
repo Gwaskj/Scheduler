@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useUser } from "../context/UserContext";
+import { useUser } from "./context/UserContext";
 
 export default function AdBanner() {
   const { user } = useUser();
