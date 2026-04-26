@@ -15,9 +15,7 @@ serve(async (req) => {
   if (req.method !== "POST") {
     return new Response("Method Not Allowed", {
       status: 405,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-      },
+      headers: { "Access-Control-Allow-Origin": "*" },
     });
   }
 
@@ -25,21 +23,41 @@ serve(async (req) => {
   if (!apiKey) {
     return new Response("Missing ORS_API_KEY", {
       status: 500,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-      },
+      headers: { "Access-Control-Allow-Origin": "*" },
     });
   }
 
   try {
-    const { from, tos } = await req.json();
+    const bodyJson = await req.json();
+    const { from, tos } = bodyJson;
+
+    // --- Validate input ---
+    if (!from || typeof from.lon !== "number" || typeof from.lat !== "number") {
+      return new Response(
+        JSON.stringify({ error: "Invalid 'from' object" }),
+        {
+          status: 400,
+          headers: { "Access-Control-Allow-Origin": "*" },
+        }
+      );
+    }
+
+    if (!Array.isArray(tos) || tos.length === 0) {
+      return new Response(
+        JSON.stringify({ error: "Invalid 'tos' array" }),
+        {
+          status: 400,
+          headers: { "Access-Control-Allow-Origin": "*" },
+        }
+      );
+    }
 
     const locations = [
       [from.lon, from.lat],
       ...tos.map((t) => [t.lon, t.lat]),
     ];
 
-    const body = {
+    const orsBody = {
       locations,
       metrics: ["duration", "distance"],
       units: "m",
@@ -53,9 +71,20 @@ serve(async (req) => {
           Authorization: apiKey,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify(orsBody),
       }
     );
+
+    if (!orsRes.ok) {
+      const text = await orsRes.text();
+      return new Response(
+        JSON.stringify({ error: `ORS Matrix error: ${text}` }),
+        {
+          status: 500,
+          headers: { "Access-Control-Allow-Origin": "*" },
+        }
+      );
+    }
 
     const data = await orsRes.json();
 
@@ -66,11 +95,12 @@ serve(async (req) => {
       },
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-      },
-    });
+    return new Response(
+      JSON.stringify({ error: String(err) }),
+      {
+        status: 500,
+        headers: { "Access-Control-Allow-Origin": "*" },
+      }
+    );
   }
 });

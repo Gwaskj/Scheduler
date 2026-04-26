@@ -15,9 +15,7 @@ serve(async (req) => {
   if (req.method !== "POST") {
     return new Response("Method Not Allowed", {
       status: 405,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-      },
+      headers: { "Access-Control-Allow-Origin": "*" },
     });
   }
 
@@ -25,16 +23,36 @@ serve(async (req) => {
   if (!apiKey) {
     return new Response("Missing ORS_API_KEY", {
       status: 500,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-      },
+      headers: { "Access-Control-Allow-Origin": "*" },
     });
   }
 
   try {
-    const { from, to } = await req.json();
+    const bodyJson = await req.json();
+    const { from, to } = bodyJson;
 
-    const body = {
+    // --- Validate input ---
+    if (!from || typeof from.lon !== "number" || typeof from.lat !== "number") {
+      return new Response(
+        JSON.stringify({ error: "Invalid 'from' object" }),
+        {
+          status: 400,
+          headers: { "Access-Control-Allow-Origin": "*" },
+        }
+      );
+    }
+
+    if (!to || typeof to.lon !== "number" || typeof to.lat !== "number") {
+      return new Response(
+        JSON.stringify({ error: "Invalid 'to' object" }),
+        {
+          status: 400,
+          headers: { "Access-Control-Allow-Origin": "*" },
+        }
+      );
+    }
+
+    const orsBody = {
       coordinates: [
         [from.lon, from.lat],
         [to.lon, to.lat],
@@ -49,30 +67,32 @@ serve(async (req) => {
           Authorization: apiKey,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify(orsBody),
       }
     );
 
     if (!orsRes.ok) {
       const text = await orsRes.text();
-      return new Response(`ORS Route error: ${text}`, {
-        status: 500,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-        },
-      });
+      return new Response(
+        JSON.stringify({ error: `ORS Route error: ${text}` }),
+        {
+          status: 500,
+          headers: { "Access-Control-Allow-Origin": "*" },
+        }
+      );
     }
 
     const data = await orsRes.json();
     const feature = data.features?.[0];
 
     if (!feature) {
-      return new Response("No route features returned", {
-        status: 500,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-        },
-      });
+      return new Response(
+        JSON.stringify({ error: "No route features returned" }),
+        {
+          status: 500,
+          headers: { "Access-Control-Allow-Origin": "*" },
+        }
+      );
     }
 
     const summary = feature.properties?.summary ?? {};
@@ -91,11 +111,12 @@ serve(async (req) => {
       }
     );
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), {
-      status: 500,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-      },
-    });
+    return new Response(
+      JSON.stringify({ error: String(err) }),
+      {
+        status: 500,
+        headers: { "Access-Control-Allow-Origin": "*" },
+      }
+    );
   }
 });
