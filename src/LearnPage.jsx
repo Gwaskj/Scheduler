@@ -2,8 +2,12 @@ import React from "react";
 import Header from "./Header";
 import "./LearnPage.css";
 import AdBanner from "./AdBanner";
+import { useUser } from "../context/UserContext"; // <-- added
 
 export default function LearnPage() {
+  const { user } = useUser();          // <-- get user
+  const isPaidUser = !!user;           // <-- define isPaidUser
+
   return (
     <>
       <Header />
@@ -51,6 +55,7 @@ export default function LearnPage() {
           to plan daily journeys without complicated software or manual
           spreadsheets.
         </p>
+
         {!isPaidUser && <AdBanner />}
       </div>
     </>

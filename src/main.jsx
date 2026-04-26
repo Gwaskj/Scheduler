@@ -1,20 +1,23 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
 
 // Load global reset FIRST
-import './index.css'
+import "./index.css";
 
 // Load your themed UI LAST so it overrides index.css
-import App from './App.jsx'
+import App from "./App.jsx";
 
 // Import Vercel Analytics
-import { Analytics } from '@vercel/analytics/react'
+import { Analytics } from "@vercel/analytics/react";
 
-createRoot(document.getElementById('root')).render(
+// ⭐ Import the UserProvider
+import { UserProvider } from "./context/UserContext";
+
+createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <>
+    <UserProvider>
       <App />
       <Analytics />
-    </>
-  </StrictMode>,
-)
+    </UserProvider>
+  </StrictMode>
+);
