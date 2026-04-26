@@ -7,6 +7,8 @@ import "./SchedulerPage.css";
 import Header from "./Header";
 import { supabase } from "./supabaseClient";
 import { getRoute } from "./services/routeCache";
+import { getMatrix } from "./ors-client";
+
 
 const ORS_API_KEY = import.meta.env.VITE_ORS_API_KEY;
 

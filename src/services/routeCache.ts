@@ -1,7 +1,6 @@
-// --------------------------------------
-// Route Cache System (TS)
-// Caches ORS route results by coordinate
-// --------------------------------------
+// src/services/routeCache.ts
+
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from "../ors-client";
 
 export interface LatLon {
   lat: number;
@@ -68,14 +67,19 @@ export async function getRoute(
     return stored.data;
   }
 
-  // 3. Fetch from your backend ORS function
-  const response = await fetch("/functions/v1/ors-route", {
+  // 3. Fetch from Supabase Edge Function
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/ors-route`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+    },
     body: JSON.stringify({ from, to }),
   });
 
   if (!response.ok) {
+    const text = await response.text();
+    console.error("ORS route error:", text);
     throw new Error("ORS route request failed");
   }
 
