@@ -2,7 +2,7 @@ import React from "react";
 import Header from "./Header";
 import "./LearnPage.css";
 import AdBanner from "./AdBanner";
-import { useUser } from "../context/UserContext"; // <-- added
+import { useUser } from "./context/UserContext"; // <-- added
 
 export default function LearnPage() {
   const { user } = useUser();          // <-- get user

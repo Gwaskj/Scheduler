@@ -2,7 +2,7 @@ import React from "react";
 import "./HomePage.css";
 import { useNavigate } from "react-router-dom";
 import AdBanner from "./AdBanner";
-import { useUser } from "../context/UserContext"; // <-- add this
+import { useUser } from "./context/UserContext"; // <-- add this
 
 export default function HomePage() {
   const navigate = useNavigate();
