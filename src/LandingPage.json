@@ -1,0 +1,33 @@
+{
+  "hero": {
+    "title": "Route Scheduler",
+    "subtitle": "Plan. Optimise. Deliver.",
+    "image": "/hero.jpg",
+    "buttons": [
+      { "text": "Get Started", "link": "/app" },
+      { "text": "Learn More", "link": "/learn" }
+    ]
+  },
+  "features": [
+    {
+      "title": "Smart Route Optimisation",
+      "desc": "Reduce travel time with intelligent routing."
+    },
+    {
+      "title": "Drag & Drop Scheduling",
+      "desc": "Build daily plans in seconds."
+    },
+    {
+      "title": "Map Visualisation",
+      "desc": "See staff routes instantly."
+    }
+  ],
+  "how_it_works": [
+    "Add your staff",
+    "Add appointments",
+    "Click optimise"
+  ],
+  "footer": {
+    "text": "© 2026 Route Scheduler. All rights reserved."
+  }
+}

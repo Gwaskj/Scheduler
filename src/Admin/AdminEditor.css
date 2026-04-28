@@ -1,0 +1,55 @@
+.admin-editor-container {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 20px;
+}
+
+.admin-title {
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+
+.admin-subtitle {
+  color: #666;
+  margin-bottom: 20px;
+}
+
+.admin-json-box {
+  width: 100%;
+  height: 500px;
+  font-family: monospace;
+  font-size: 14px;
+  padding: 15px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  outline: none;
+  resize: vertical;
+}
+
+.admin-save-btn {
+  margin-top: 20px;
+  padding: 12px 24px;
+  background: #2c7be5;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.admin-save-btn:hover {
+  background: #1a5fc4;
+}
+
+.admin-status {
+  margin-top: 15px;
+  font-size: 16px;
+}
+
+.admin-status.success {
+  color: #2e8b57;
+}
+
+.admin-status.error {
+  color: #d9534f;
+}

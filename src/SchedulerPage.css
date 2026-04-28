@@ -1,4 +1,6 @@
-/* === SCHEDULER PAGE === */
+/* ============================================
+   GLOBAL PAGE WRAPPER
+============================================ */
 .scheduler-page {
   max-width: 1100px;
   margin: 0 auto;
@@ -9,23 +11,30 @@
   box-sizing: border-box;
 }
 
-/* === SECTION WRAPPER === */
-.scheduler-section {
+/* ============================================
+   SECTION WRAPPER
+============================================ */
+.scheduler-section,
+section {
   background: #fff;
   border-radius: 10px;
   padding: 1.5rem;
   margin-bottom: 1.5rem;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
   transition: box-shadow 0.2s ease, transform 0.1s ease;
 }
 
-.scheduler-section:hover {
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+.scheduler-section:hover,
+section:hover {
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
   transform: translateY(-1px);
 }
 
-/* === HEADINGS === */
-.scheduler-section h2 {
+/* ============================================
+   HEADINGS
+============================================ */
+.scheduler-section h2,
+section h2 {
   margin-top: 0;
   font-size: 1.4rem;
   font-weight: 600;
@@ -34,8 +43,10 @@
   color: #021092;
 }
 
-/* === FORM ELEMENTS === */
-.scheduler-section label {
+/* ============================================
+   FORM ELEMENTS
+============================================ */
+label {
   font-size: 0.85rem;
   font-weight: 600;
   display: block;
@@ -43,8 +54,8 @@
   color: #444;
 }
 
-.scheduler-section input,
-.scheduler-section select {
+input,
+select {
   width: 100%;
   padding: 0.5rem;
   border-radius: 6px;
@@ -54,14 +65,22 @@
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.scheduler-section input:focus,
-.scheduler-section select:focus {
+input:focus,
+select:focus {
   outline: none;
   border-color: #0078ff;
-  box-shadow: 0 0 0 2px rgba(0, 120, 255, 0.2);
+  box-shadow: 0 0 0 2px rgba(0,120,255,0.2);
 }
 
-/* === BUTTONS === */
+.input-error {
+  border-color: #d9534f !important;
+  background: #ffecec;
+}
+
+/* ============================================
+   BUTTONS
+============================================ */
+button,
 .scheduler-button {
   background: #0078ff;
   color: #fff;
@@ -74,61 +93,408 @@
   transition: background 0.2s ease, transform 0.1s ease;
 }
 
+button:hover,
 .scheduler-button:hover {
   background: #005fcc;
   transform: translateY(-1px);
 }
 
-/* === FLEX ROWS === */
+button:disabled {
+  background: #aaa;
+  cursor: not-allowed;
+}
+
+/* ============================================
+   FLEX ROWS
+============================================ */
 .flex-row {
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
 }
 
-/* === OUTPUT LIST === */
-.scheduler-output {
-  background: #f9fafb;
+.flex-column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ============================================
+   STAFF LIST
+============================================ */
+.staff-list {
+  list-style: none;
+  padding: 0;
+  margin-top: 12px;
+}
+
+.staff-list-item {
+  padding: 10px;
+  background: #f8f9fa;
   border-radius: 8px;
-  padding: 1rem;
-  font-size: 0.9rem;
-  line-height: 1.4;
-  border: 1px solid #e5e7eb;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-.scheduler-output ul {
-  padding-left: 1rem;
-  margin: 0;
+.staff-edit-name {
+  width: 140px;
 }
 
-.scheduler-output li {
-  margin-bottom: 0.4rem;
+.staff-details {
+  color: #555;
 }
 
-/* === MAP CONTAINER === */
+.staff-remove-btn {
+  margin-left: auto;
+  background: #d9534f;
+}
+
+/* ============================================
+   APPOINTMENT LIST
+============================================ */
+.appt-list {
+  list-style: none;
+  padding: 0;
+}
+
+.appt-list-item {
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.appt-edit-name {
+  width: 200px;
+}
+
+.appt-details {
+  color: #555;
+}
+
+.appt-remove-btn {
+  background: #d9534f;
+  width: 120px;
+  margin-top: 6px;
+}
+
+/* ============================================
+   WINDOW EDITOR
+============================================ */
+.window-row,
+.window-edit-row {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  padding: 8px 0;
+  align-items: center;
+}
+
+.window-name {
+  font-weight: 600;
+}
+
+.window-time {
+  color: #555;
+}
+
+.window-input {
+  width: 120px;
+}
+
+.window-select {
+  width: 110px;
+}
+
+.window-remove-btn {
+  background: #d9534f;
+}
+
+.window-add-btn {
+  margin-top: 10px;
+}
+
+.window-confirm-btn {
+  background: #28a745;
+}
+
+.window-cancel-btn {
+  background: #6c757d;
+}
+
+/* ============================================
+   RESULTS PAGE
+============================================ */
+.results-section {
+  margin-top: 20px;
+}
+
+.results-staff-selector {
+  margin-bottom: 20px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.results-select {
+  width: 200px;
+}
+
+/* ============================================
+   UTILISATION BARS
+============================================ */
+.utilisation-container {
+  margin-top: 20px;
+}
+
+.utilisation-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.utilisation-bar {
+  flex: 1;
+  height: 14px;
+  background: #e9ecef;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.utilisation-fill {
+  height: 100%;
+  background: #28a745;
+}
+
+.utilisation-label {
+  width: 80px;
+  text-align: right;
+  color: #333;
+}
+
+/* ============================================
+   RESULT CARDS
+============================================ */
+.results-cards {
+  margin-top: 20px;
+}
+
+.results-staff-block {
+  margin-bottom: 30px;
+}
+
+.result-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+
+.result-card-header {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.result-card-body div {
+  margin-bottom: 4px;
+}
+
+/* ============================================
+   MAP
+============================================ */
+.results-map-container,
 .map-container {
   height: 400px;
   border-radius: 10px;
   overflow: hidden;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
   border: 1px solid #e5e7eb;
+  margin-top: 25px;
 }
 
-/* === MOBILE === */
+/* ============================================
+   MOBILE
+============================================ */
 @media (max-width: 600px) {
   .scheduler-page {
     padding: 1rem;
   }
 
-  .scheduler-section {
+  .scheduler-section,
+  section {
     padding: 1rem;
   }
 
-  .scheduler-section h2 {
+  .scheduler-section h2,
+  section h2 {
     font-size: 1.2rem;
   }
 
+  button,
   .scheduler-button {
     width: 100%;
   }
+}
+/* ============================================
+   SECTION 8 — PREMIUM UI POLISH
+   Dark Mode • Animations • Micro‑Interactions
+============================================ */
+
+/* --------------------------------------------
+   1. Smooth global transitions
+-------------------------------------------- */
+* {
+  transition: background-color 0.25s ease,
+              color 0.25s ease,
+              border-color 0.25s ease,
+              box-shadow 0.25s ease;
+}
+
+/* --------------------------------------------
+   2. Hover lift for cards + list items
+-------------------------------------------- */
+.result-card,
+.staff-list-item,
+.appt-list-item {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.result-card:hover,
+.staff-list-item:hover,
+.appt-list-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+
+/* --------------------------------------------
+   3. Button micro‑interaction
+-------------------------------------------- */
+button:active,
+.scheduler-button:active {
+  transform: scale(0.97);
+}
+
+/* --------------------------------------------
+   4. Fade‑in animation for results page
+-------------------------------------------- */
+.results-section {
+  animation: fadeIn 0.35s ease forwards;
+  opacity: 0;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* --------------------------------------------
+   5. Map subtle border glow on hover
+-------------------------------------------- */
+.results-map-container:hover {
+  box-shadow: 0 0 0 3px rgba(0,120,255,0.25),
+              0 4px 12px rgba(0,0,0,0.12);
+}
+
+/* --------------------------------------------
+   6. Utilisation bar animation
+-------------------------------------------- */
+.utilisation-fill {
+  animation: fillBar 0.8s ease-out;
+}
+
+@keyframes fillBar {
+  from { width: 0; }
+  to   { width: var(--target-width, 100%); }
+}
+
+/* --------------------------------------------
+   7. Dark Mode Toggle (class-based)
+   Add <body class="dark-mode"> to activate
+-------------------------------------------- */
+body.dark-mode {
+  background: #0f1116;
+  color: #e6e6e6;
+}
+
+body.dark-mode .scheduler-section,
+body.dark-mode section {
+  background: #1a1d24;
+  border-color: #2a2e38;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+}
+
+body.dark-mode h2 {
+  color: #7aa2ff;
+  border-bottom-color: #333;
+}
+
+body.dark-mode input,
+body.dark-mode select {
+  background: #111318;
+  color: #e6e6e6;
+  border-color: #333;
+}
+
+body.dark-mode input:focus,
+body.dark-mode select:focus {
+  border-color: #4c8dff;
+  box-shadow: 0 0 0 2px rgba(76,141,255,0.25);
+}
+
+body.dark-mode button {
+  background: #4c8dff;
+}
+
+body.dark-mode button:hover {
+  background: #3a6fd6;
+}
+
+body.dark-mode .result-card,
+body.dark-mode .staff-list-item,
+body.dark-mode .appt-list-item {
+  background: #1f232b;
+  border-color: #2a2e38;
+}
+
+body.dark-mode .utilisation-bar {
+  background: #2a2e38;
+}
+
+body.dark-mode .utilisation-fill {
+  background: #4c8dff;
+}
+
+body.dark-mode .results-map-container {
+  border-color: #2a2e38;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+}
+
+/* --------------------------------------------
+   8. Toggle switch styling (optional)
+-------------------------------------------- */
+.darkmode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 1rem;
+}
+
+.darkmode-toggle input {
+  width: auto;
+  margin: 0;
+}
+
+.darkmode-toggle span {
+  font-size: 0.9rem;
+  font-weight: 600;
 }
