@@ -1115,3 +1115,4 @@ function getDurationForAppt(appt) {
   </section>
 )}
 }
+export default SchedulerPage;
